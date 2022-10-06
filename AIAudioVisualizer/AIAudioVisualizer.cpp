@@ -83,6 +83,7 @@ int AudioVisualizer::initSound()
 	int nframes = (int)numSamples / 512 + 2; //hop size
 	int currentFrame = 0;
 	auto superarray = xt::xarray<float>::from_shape({ 1 , 1025, (unsigned long) nframes, 2 }); //all frames
+	auto arraytransposed = xt::xarray<float>::from_shape({ 1025, (unsigned long)nframes, 2 });
 
 	for (int i = 0; i < numSamples; i++)
 	{
@@ -97,6 +98,7 @@ int AudioVisualizer::initSound()
 				//bufferl[k] = (stftl.bin(k).mag() + 1.0); //compute the absolute value;
 				superarray(0, k, currentFrame, 0) = log2(stftl.bin(k).mag() + 1.0);
 
+				arraytransposed(k, currentFrame,0) = log2(stftl.bin(k).mag() + 1.0);
 				//{1 * 1025 * 21 * 2}; //shape of tensor
 				//int index = a * 1025 * 21 * 2
 				//	+ b * 21 * 2
@@ -122,6 +124,7 @@ int AudioVisualizer::initSound()
 				//bufferr[k] = log2(stftr.bin(k).mag() + 1.0); //compute the absolute value;
 				superarray(0, k, currentFrame, 1) = log2(stftr.bin(k).mag() + 1.0);
 
+				arraytransposed(k, currentFrame, 1) = log2(stftr.bin(k).mag() + 1.0);
 				//{1 * 1025 * 21 * 2}; //shape of tensor
 				//int index = a * 1025 * 21 * 2
 				//	+ b * 21 * 2
@@ -155,11 +158,35 @@ int AudioVisualizer::initSound()
 		//std::cout << predicted[0] << std::endl;
 
 		std::vector<float> values = predicted[0].get_data<float>();
-		std::vector<std::size_t> shape = { 1, 1025, 21, 2, 4 };
+		std::vector<std::size_t> shape = { 1025, 21, 2, 4 };
 		auto xtensorpredicted = xt::adapt(values, shape);
 
-		std::cout << predicted[0] << std::endl;
+		//auto xtensorpredictedexpanded = xt::expand_dims(xtensorpredicted, 0);//esto no va
+		//stftpredicted[:,i-10:i+11,:,:] = stftpredicted[:,i-10:i+11,:,:] + (1/7)*prediction[0,:,:,:,:] 
+		auto stftpredictedslice = xt::view(stftpredicted, xt::all(), xt::range(i - 10, i + 11), xt::all(), xt::all());
 
+		stftpredictedslice = stftpredictedslice + (1 / 7) * xtensorpredicted;
+
+		//std::cout << predicted[0] << std::endl;
+
+	}
+	
+	stftpredicted = xt::pow(2, stftpredicted) - 1;
+	auto denmask = xt::sum(stftpredicted, { 3 });
+	xt::xarray<float> softmasks = xt::zeros<float>({ 1025, nframes, 2, 4 });
+	xt::xarray<float> sources = xt::zeros<float>({ 1025, nframes, 2, 4 });
+	
+	float eps = std::numeric_limits<float>::epsilon();
+
+	
+	for (int j = 0; j < 4; j++)
+	{
+		auto softmaskslice = xt::view(softmasks, xt::all(), xt::all(), xt::all(), j);
+		auto sourcesslice = xt::view(sources, xt::all(), xt::all(), xt::all(), j);
+		auto stftpredictedslice = xt::view(stftpredicted, xt::all(), xt::all(), xt::all(), j);
+
+		softmaskslice = stftpredictedslice / (denmask + eps);
+		sourcesslice = softmaskslice * arraytransposed;
 	}
 	
 	//------testing tensor init------------

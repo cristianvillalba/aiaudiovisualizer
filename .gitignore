@@ -1,2 +1,4 @@
 AIAudioVisualizer/lib/
 .vs/
+out/
+external/
