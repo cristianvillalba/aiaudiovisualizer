@@ -26,8 +26,6 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/Gamma) #include Gamma headers
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/tensorflow/lib) #include tensorflow headers
 include_directories(${xtensor_INCLUDE_DIRS}) #include xtensor headers
 include_directories(${xtl_INCLUDE_DIRS}) #include xtensor headers
-#include_directories(/soundseparation/xtensor-master/include) #include xtensor headers
-#include_directories(/soundseparation/xtl-master/include) #include xtensor headers
 
 target_link_libraries(AIAudioVisualizer PRIVATE ${SDL2_LIBRARIES})
 target_link_libraries(AIAudioVisualizer PRIVATE Vulkan::Vulkan)

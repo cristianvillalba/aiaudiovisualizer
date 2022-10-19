@@ -50,9 +50,7 @@ int AudioVisualizer::initSound()
 	float* bufferl = new float[1025]; //1024 + 1?
 	float* bufferr = new float[1025]; //1024 + 1?
 
-	float scale = 1.0 / (pow(1024, 2));
-	scale = sqrt(scale);
-	scale = 1.0;
+	float scale = 2.0000630488853100000;
 
 	size_t size = 1 * 1025 * 21 * 2; //final size of tensor input
 	std::vector<float> _data(size, 0.0f);    // make room for tensor and initialize them to 0
@@ -80,21 +78,34 @@ int AudioVisualizer::initSound()
 	};
 
 	int numSamples = audioFile.getNumSamplesPerChannel();
-	int nframes = (int)numSamples / 512 + 2; //hop size
+	int nframes = (int)numSamples / 512 + 2; //hop size + 2 because it's padded with 0s
 	int currentFrame = 0;
 	auto superarray = xt::xarray<float>::from_shape({ 1 , 1025, (unsigned long) nframes, 2 }); //all frames
 	auto arraytransposed = xt::xarray<float>::from_shape({ 1025, (unsigned long)nframes, 2 });
+	auto phasetransposed = xt::xarray<float>::from_shape({ 1025, (unsigned long)nframes, 2 });
 
-	for (int i = 0; i < numSamples; i++)
+	for (int i = 0; i < 1536; i++)
+	{
+		stftl(0.0);
+		stftr(0.0);
+	}
+
+	for (int i = 0; i < 512; i++)
+	{
+		stftl(audioFile.samples[0][i]);
+		stftr(audioFile.samples[1][i]);
+	}
+
+	for (int i = 512; i < numSamples; i++)
 	{
 		float currentSample = audioFile.samples[0][i];
 
 		if (stftl(currentSample)) {
-
 			// Loop through all the bins
 			for (unsigned k = 0; k < stftl.numBins(); ++k) {
-				superarray(0, k, currentFrame, 0) = log2(stftl.bin(k).mag() + 1.0);
-				arraytransposed(k, currentFrame,0) = log2(stftl.bin(k).mag() + 1.0);
+				superarray(0, k, currentFrame, 0) = log2(stftl.bin(k).mag() * scale  + 1.0);
+				arraytransposed(k, currentFrame,0) = stftl.bin(k).mag() ;
+				phasetransposed(k, currentFrame, 0) = stftl.bin(k).phase();
 				//{1 * 1025 * 21 * 2}; //shape of tensor
 				//int index = a * 1025 * 21 * 2
 				//	+ b * 21 * 2
@@ -105,6 +116,10 @@ int AudioVisualizer::initSound()
 				//			0 * 2 +
 				//			0;
 				//_data[index] = log2(stftl.bin(k).mag() + 1.0);
+				
+				//std::cout << stftl.bin(k).mag() << " "<< stftl.bin(k).arg() << std::endl;
+				//std::cout << stftl.bin(k).real() << "," << stftl.bin(k).imag() << std::endl;
+				//std::cout << log2(stftl.bin(k).mag() * scale + 1.0) << std::endl;
 
 			}
 		}
@@ -115,8 +130,9 @@ int AudioVisualizer::initSound()
 
 			// Loop through all the bins
 			for (unsigned k = 0; k < stftr.numBins(); ++k) {
-				superarray(0, k, currentFrame, 1) = log2(stftr.bin(k).mag() + 1.0);
-				arraytransposed(k, currentFrame, 1) = log2(stftr.bin(k).mag() + 1.0);
+				superarray(0, k, currentFrame, 1) = log2(stftr.bin(k).mag() * scale + 1.0);
+				arraytransposed(k, currentFrame, 1) = stftr.bin(k).mag();
+				phasetransposed(k, currentFrame, 1) = stftr.bin(k).phase();
 				//{1 * 1025 * 21 * 2}; //shape of tensor
 				//int index = a * 1025 * 21 * 2
 				//	+ b * 21 * 2
@@ -132,38 +148,34 @@ int AudioVisualizer::initSound()
 		}
 	}
 
-	//------old xtensor code---------------
-	//xt::xarray<float> xshape = xt::transpose(superarray, { 1, 2, 0 });
-	//xshape.reshape({ 1, 1025, 1, 2});
-	//xshape.reshape({ 1, 1025, 21, 2 });//with 21 frames
-	
-	cppflow::tensor input{ _data, shape };
-	xt::xarray<float> stftpredicted = xt::empty<double>({ 1025, nframes, 2, 4 });
+	xt::xarray<double> stftpredicted = xt::zeros<double>({ 1025, nframes, 2, 4 });
+	double division = 1.0 / 7.0;//dumb rounding bug, integer division was before (1/7 => 0)
 
 	for (auto&& i : xt::arange(10, nframes - 11, 3)) {
 		auto frameview = xt::view(superarray, xt::all(), xt::all(), xt::range(i - 10, i + 11), xt::all());
 
 		std::copy(frameview.cbegin(), frameview.cend(), _data.begin());
+		cppflow::tensor input = cppflow::tensor( _data , { 1, 1025, 21, 2 });
 
 		auto predicted = model->operator()({{"serving_default_input_1", input}}, { "StatefulPartitionedCall"}); //solo funciona asi
 
 		std::vector<float> values = predicted[0].get_data<float>();
-		std::vector<std::size_t> shape = { 1025, 21, 2, 4 };
-		auto xtensorpredicted = xt::adapt(values, shape);
+
+		std::vector<std::size_t> shapeout = {1025, 21, 2, 4 };
+		auto xtensorpredicted = xt::adapt(values, shapeout);
 
 		auto stftpredictedslice = xt::view(stftpredicted, xt::all(), xt::range(i - 10, i + 11), xt::all(), xt::all());
 
-		stftpredictedslice = stftpredictedslice + (1 / 7) * xtensorpredicted;
+		stftpredictedslice = stftpredictedslice + division * xtensorpredicted;//dumb rounding bug
 	}
-	
+
 	stftpredicted = xt::pow(2, stftpredicted) - 1;
 	auto denmask = xt::sum(stftpredicted, { 3 });
-	xt::xarray<float> softmasks = xt::zeros<float>({ 1025, nframes, 2, 4 });
-	xt::xarray<float> sources = xt::zeros<float>({ 1025, nframes, 2, 4 });
+	auto softmasks = xt::xarray<double>::from_shape({ 1025, (unsigned long)nframes, 2, 4 });
+	auto sources = xt::xarray<double>::from_shape({ 1025, (unsigned long)nframes, 2 , 4});
 	
 	float eps = std::numeric_limits<float>::epsilon();
 
-	
 	for (int j = 0; j < 4; j++)
 	{
 		auto softmaskslice = xt::view(softmasks, xt::all(), xt::all(), xt::all(), j);
@@ -174,8 +186,8 @@ int AudioVisualizer::initSound()
 		sourcesslice = softmaskslice * arraytransposed;
 	}
 
-	xt::xarray<float> magnitudestftoutl = xt::view(sources, xt::all(), xt::all(),0, xt::all());
-	xt::xarray<float> magnitudestftoutr = xt::view(sources, xt::all(), xt::all(), 1, xt::all());
+	xt::xarray<double> magnitudestftoutl = xt::view(sources, xt::all(), xt::all(),0, xt::all());
+	xt::xarray<double> magnitudestftoutr = xt::view(sources, xt::all(), xt::all(), 1, xt::all());
 
 	//-----mix step
 	AudioFile<float>::AudioBuffer bufferout;
@@ -194,9 +206,14 @@ int AudioVisualizer::initSound()
 	{
 		for (int j = 0; j < stftl.numBins(); j++)
 		{
-			stftl.bin(j).mag(magnitudestftoutl(j, k, 1)); //first instrument;
-			stftr.bin(j).mag(magnitudestftoutr(j, k, 1)); //first instrument;
-			//angle or phase is the same(?)
+			gam::Complex comp0;
+			gam::Complex comp1;
+
+			comp0.fromPolar(magnitudestftoutl(j, k, 3), phasetransposed(j, k, 0));
+			comp1.fromPolar(magnitudestftoutr(j, k, 3), phasetransposed(j, k, 1));
+
+			stftl.bin(j).set(comp0);
+			stftr.bin(j).set(comp1);
 		}
 
 		stftl.inverse(bufferindexl); //save inverse into buffer
@@ -207,7 +224,7 @@ int AudioVisualizer::initSound()
 	}
 	
 	bool ok = audioFile.setAudioBuffer(bufferout);
-	audioFile.save("0.wav", AudioFileFormat::Wave);
+	audioFile.save("voice.wav", AudioFileFormat::Wave);
 
 	delete model;
 	return 0;

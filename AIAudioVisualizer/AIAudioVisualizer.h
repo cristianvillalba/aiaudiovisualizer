@@ -12,6 +12,7 @@
 #include "cppflow/model.h"
 #include "AudioFile.h"
 #include "Gamma/DFT.h"
+#include "Gamma/Types.h"
 #include <xtensor/xarray.hpp>
 #include <xtensor/xadapt.hpp>
 #include <xtensor/xio.hpp>
