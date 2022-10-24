@@ -17,9 +17,22 @@
 #include "imgui_impl_sdl.h"
 #include "imgui_impl_vulkan.h"
 
+#include "portaudio.h"
+
+#define TABLE_SIZE   (200)
+
 #ifdef _DEBUG
 #define IMGUI_VULKAN_DEBUG_REPORT
 #endif
+
+typedef struct
+{
+	float sine[TABLE_SIZE];
+	int left_phase;
+	int right_phase;
+	char message[20];
+}
+paTestData;
 
 class PipelineBuilder {
 public:
@@ -122,6 +135,10 @@ constexpr unsigned int FRAME_OVERLAP = 2;
 
 class VulkanEngine {
 public:
+	//-----------Audio Section--------------
+	paTestData data;
+	PaStream* stream;
+	//-----------Audio Section--------------
 
 	bool _isInitialized{ false };
 	int _frameNumber {0};
@@ -241,4 +258,6 @@ private:
 	void upload_mesh(Mesh& mesh);
 
 	void init_imgui();
+
+	void init_sound();
 };

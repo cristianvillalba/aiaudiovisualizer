@@ -31,10 +31,45 @@ using namespace std;
 	} while (0)
 
 
+/* This routine will be called by the PortAudio engine when audio is needed.
+ * It may called at interrupt level on some machines so don't do anything
+ * that could mess up the system like calling malloc() or free().
+*/
+static int patestCallback(const void* inputBuffer, void* outputBuffer,
+	unsigned long framesPerBuffer,
+	const PaStreamCallbackTimeInfo * timeInfo,
+	PaStreamCallbackFlags statusFlags,
+	void* userData)
+{
+	paTestData* data = (paTestData*)userData;
+	float* out = (float*)outputBuffer;
+	unsigned long i;
+
+	(void)timeInfo; /* Prevent unused variable warnings. */
+	(void)statusFlags;
+	(void)inputBuffer;
+
+	for (i = 0; i < framesPerBuffer; i++)
+	{
+		*out++ = data->sine[data->left_phase];  /* left */
+		*out++ = data->sine[data->right_phase];  /* right */
+		data->left_phase += 1;
+		if (data->left_phase >= TABLE_SIZE) data->left_phase -= TABLE_SIZE;
+		data->right_phase += 3; /* higher pitch so we can distinguish left and right. */
+		if (data->right_phase >= TABLE_SIZE) data->right_phase -= TABLE_SIZE;
+	}
+
+	return PaStreamCallbackResult::paContinue;
+}
+
 void VulkanEngine::init()
 {
 	// We initialize SDL and create a window with it. 
-	SDL_Init(SDL_INIT_VIDEO);
+	if (SDL_Init(SDL_INIT_VIDEO) < 0)
+	{
+		std::cout << "Error in SDL initialization..." << std::endl;
+		abort();
+	}
 
 	SDL_WindowFlags window_flags = (SDL_WindowFlags)(SDL_WINDOW_VULKAN);
 	
@@ -69,6 +104,8 @@ void VulkanEngine::init()
 	
 	init_imgui();
 
+	init_sound();
+
 	//everything went fine
 	_isInitialized = true;
 }
@@ -88,6 +125,24 @@ void VulkanEngine::cleanup()
 		vkDestroyInstance(_instance, nullptr);
 
 		SDL_DestroyWindow(_window);
+
+		//kill sound
+		int err = Pa_StopStream(stream);
+		if (err != paNoError) {
+			std::cout << "PortAudio error stop: " << Pa_GetErrorText(err) << std::endl;
+		}
+
+		err = Pa_CloseStream(stream);
+		if (err != paNoError) {
+			std::cout << "PortAudio error close: " << Pa_GetErrorText(err) << std::endl;
+		}
+
+		err = Pa_Terminate();
+		if (err != paNoError){
+			std::cout << "PortAudio error terminate: " << Pa_GetErrorText(err) << std::endl;
+		}
+
+		std::cout << "Closing Engine Complete" << std::endl;
 	}
 }
 
@@ -1236,4 +1291,68 @@ void VulkanEngine::init_imgui()
 		vkDestroyDescriptorPool(_device, imguiPool, nullptr);
 		ImGui_ImplVulkan_Shutdown();
 	});
+}
+
+void VulkanEngine::init_sound()
+{
+	PaError err;
+	const   PaDeviceInfo* deviceInfo;
+	
+	err = Pa_Initialize();
+	if (err != paNoError) {
+		std::cout << "PortAudio error: " << Pa_GetErrorText(err) << std::endl;
+		abort();
+	}
+
+	std::cout << "PortAudio version: " << Pa_GetVersion() << std::endl;
+
+	int numDevices = Pa_GetDeviceCount();
+	
+	if (numDevices < 0)
+	{
+		std::cout << "ERROR: Pa_GetDeviceCount returned" << std::endl;
+		err = numDevices;
+	}
+
+	std::cout << "Number of devices = " << numDevices << std::endl;
+	for (int i = 0; i < numDevices; i++)
+	{
+		deviceInfo = Pa_GetDeviceInfo(i);
+		std::cout << "Name = " << deviceInfo->name << std::endl;
+	}
+
+	/* initialise sinusoidal wavetable */
+	for (int i = 0; i < TABLE_SIZE; i++)
+	{
+		data.sine[i] = (float)sin(((double)i / (double)TABLE_SIZE) * M_PI * 2.);
+	}
+	data.left_phase = data.right_phase = 0;
+
+	/* Open an audio I/O stream. */
+	err = Pa_OpenDefaultStream(&stream,
+		0,          /* no input channels */
+		2,          /* stereo output */
+		paFloat32,  /* 32 bit floating point output */
+		44100,
+		256,        /* frames per buffer, i.e. the number
+						   of sample frames that PortAudio will
+						   request from the callback. Many apps
+						   may want to use
+						   paFramesPerBufferUnspecified, which
+						   tells PortAudio to pick the best,
+						   possibly changing, buffer size.*/
+		patestCallback, /* this is your callback function */
+		&data); /*This is a pointer that will be passed to
+						   your callback*/
+	
+	if (err != paNoError) {
+		std::cout << "PortAudio Error while open stream" << std::endl;
+		abort();
+	}
+
+	err = Pa_StartStream(stream);
+	if (err != paNoError) {
+		std::cout << "PortAudio Error while start stream" << std::endl;
+		abort();
+	}
 }
