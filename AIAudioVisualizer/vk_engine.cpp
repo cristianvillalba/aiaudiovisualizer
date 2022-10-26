@@ -35,6 +35,7 @@ using namespace std;
  * It may called at interrupt level on some machines so don't do anything
  * that could mess up the system like calling malloc() or free().
 */
+/*
 static int patestCallback(const void* inputBuffer, void* outputBuffer,
 	unsigned long framesPerBuffer,
 	const PaStreamCallbackTimeInfo * timeInfo,
@@ -45,21 +46,88 @@ static int patestCallback(const void* inputBuffer, void* outputBuffer,
 	float* out = (float*)outputBuffer;
 	unsigned long i;
 
-	(void)timeInfo; /* Prevent unused variable warnings. */
+	(void)timeInfo; // Prevent unused variable warnings
 	(void)statusFlags;
 	(void)inputBuffer;
 
-	for (i = 0; i < framesPerBuffer; i++)
+	//for (i = 0; i < framesPerBuffer; i++)
+	//{
+	//	*out++ = data->sine[data->left_phase];  // left
+	//	*out++ = data->sine[data->right_phase];  // right 
+	//	data->left_phase += 1;
+	//	if (data->left_phase >= TABLE_SIZE) data->left_phase -= TABLE_SIZE;
+	//	data->right_phase += 3; // higher pitch so we can distinguish left and right.
+	//	if (data->right_phase >= TABLE_SIZE) data->right_phase -= TABLE_SIZE;
+	//}
+
+	//return PaStreamCallbackResult::paContinue;
+}*/
+
+static int recordCallback(const void* inputBuffer, void* outputBuffer,
+	unsigned long framesPerBuffer,
+	const PaStreamCallbackTimeInfo * timeInfo,
+	PaStreamCallbackFlags statusFlags,
+	void* userData)
+{
+	paTestData* data = (paTestData*)userData;
+	const SAMPLE* rptr = (const SAMPLE*)inputBuffer;
+	SAMPLE* wptr = &data->recordedSamples[data->frameIndex * NUM_CHANNELS];
+	long framesToCalc;
+	long i;
+	int finished;
+	unsigned long framesLeft = data->maxFrameIndex - data->frameIndex;
+
+	(void)outputBuffer; /* Prevent unused variable warnings. */
+	(void)timeInfo;
+	(void)statusFlags;
+	(void)userData;
+
+	if (framesLeft < framesPerBuffer)
 	{
-		*out++ = data->sine[data->left_phase];  /* left */
-		*out++ = data->sine[data->right_phase];  /* right */
-		data->left_phase += 1;
-		if (data->left_phase >= TABLE_SIZE) data->left_phase -= TABLE_SIZE;
-		data->right_phase += 3; /* higher pitch so we can distinguish left and right. */
-		if (data->right_phase >= TABLE_SIZE) data->right_phase -= TABLE_SIZE;
+		framesToCalc = framesLeft;
+		finished = paComplete;
+
+#if WRITE_TO_FILE
+		{
+			FILE* fid;
+			fid = fopen("recorded.raw", "wb");
+			if (fid == NULL)
+			{
+				printf("Could not open file.");
+			}
+			else
+			{
+				fwrite(data->recordedSamples, NUM_CHANNELS * sizeof(SAMPLE), data->maxFrameIndex, fid);
+				fclose(fid);
+				printf("Wrote data to 'recorded.raw'\n");
+			}
+		}
+#endif
+	}
+	else
+	{
+		framesToCalc = framesPerBuffer;
+		finished = paContinue;
 	}
 
-	return PaStreamCallbackResult::paContinue;
+	if (inputBuffer == NULL)
+	{
+		for (i = 0; i < framesToCalc; i++)
+		{
+			*wptr++ = SAMPLE_SILENCE;  /* left */
+			if (NUM_CHANNELS == 2) *wptr++ = SAMPLE_SILENCE;  /* right */
+		}
+	}
+	else
+	{
+		for (i = 0; i < framesToCalc; i++)
+		{
+			*wptr++ = *rptr++;  /* left */
+			if (NUM_CHANNELS == 2) *wptr++ = *rptr++;  /* right */
+		}
+	}
+	data->frameIndex += framesToCalc;
+	return finished;
 }
 
 void VulkanEngine::init()
@@ -127,6 +195,8 @@ void VulkanEngine::cleanup()
 		SDL_DestroyWindow(_window);
 
 		//kill sound
+		free(data.recordedSamples);//freeing dynamic allocation
+
 		int err = Pa_StopStream(stream);
 		if (err != paNoError) {
 			std::cout << "PortAudio error stop: " << Pa_GetErrorText(err) << std::endl;
@@ -143,6 +213,8 @@ void VulkanEngine::cleanup()
 		}
 
 		std::cout << "Closing Engine Complete" << std::endl;
+
+		
 	}
 }
 
@@ -1297,6 +1369,13 @@ void VulkanEngine::init_sound()
 {
 	PaError err;
 	const   PaDeviceInfo* deviceInfo;
+	PaStreamParameters inputParameters;
+	int                 i;
+	int                 totalFrames;
+	int                 numSamples;
+	int                 numBytes;
+	SAMPLE              max, val;
+	double              average;
 	
 	err = Pa_Initialize();
 	if (err != paNoError) {
@@ -1317,36 +1396,81 @@ void VulkanEngine::init_sound()
 	std::cout << "Number of devices = " << numDevices << std::endl;
 	for (int i = 0; i < numDevices; i++)
 	{
+		std::cout << "------------------------------------------------------" << std::endl;
+		std::cout << "Device number: " << i << std::endl;
 		deviceInfo = Pa_GetDeviceInfo(i);
-		std::cout << "Name = " << deviceInfo->name << std::endl;
+		wchar_t wideName[MAX_PATH];
+		MultiByteToWideChar(CP_UTF8, 0, deviceInfo->name, -1, wideName, MAX_PATH - 1);
+		std::wcout << "Name = " << wideName << std::endl;
+
+		std::cout << "Host API = " << Pa_GetHostApiInfo(deviceInfo->hostApi)->name << std::endl;
+		std::cout << "Max inputs = " << deviceInfo->maxInputChannels << std::endl;
+		std::cout << "Max outputs = " << deviceInfo->maxOutputChannels << std::endl;
+
+		std::cout << "Default low input latency   = " << deviceInfo->defaultLowInputLatency << std::endl;
+		std::cout << "Default low output latency  = " << deviceInfo->defaultLowOutputLatency << std::endl;
+		std::cout << "Default high input latency  = " << deviceInfo->defaultHighInputLatency << std::endl;
+		std::cout << "Default high output latency = " << deviceInfo->defaultHighOutputLatency << std::endl;
+
 	}
 
-	/* initialise sinusoidal wavetable */
+	data.maxFrameIndex = totalFrames = NUM_SECONDS * SAMPLE_RATE; /* Record for a few seconds. */
+	data.frameIndex = 0;
+	numSamples = totalFrames * NUM_CHANNELS;
+	numBytes = numSamples * sizeof(SAMPLE);
+	data.recordedSamples = (SAMPLE*)malloc(numBytes); /* From now on, recordedSamples is initialised. */
+	if (data.recordedSamples == NULL)
+	{
+		std::cout << "Could not allocate record array" << std::endl;
+		abort();
+	}
+	for (i = 0; i < numSamples; i++) data.recordedSamples[i] = 0;
+	
+
+	memset(&inputParameters, 0, sizeof(inputParameters));//not necessary if you are filling in all the fields
+	inputParameters.channelCount = NUM_CHANNELS;
+	inputParameters.device = 15; //realtek audio capture
+	inputParameters.sampleFormat = PA_SAMPLE_TYPE;
+	inputParameters.suggestedLatency = Pa_GetDeviceInfo(15)->defaultLowInputLatency;
+	//inputParameters.suggestedLatency = Pa_GetDeviceInfo(15)->defaultHighInputLatency;
+	inputParameters.hostApiSpecificStreamInfo = NULL; //See you specific host's API docs for info on using this field
+
+	/* initialise sinusoidal wavetable
 	for (int i = 0; i < TABLE_SIZE; i++)
 	{
 		data.sine[i] = (float)sin(((double)i / (double)TABLE_SIZE) * M_PI * 2.);
 	}
 	data.left_phase = data.right_phase = 0;
+	*/
 
-	/* Open an audio I/O stream. */
+	/* Open an audio I/O stream.
 	err = Pa_OpenDefaultStream(&stream,
-		0,          /* no input channels */
-		2,          /* stereo output */
-		paFloat32,  /* 32 bit floating point output */
+		0,          // no input channels 
+		2,          // stereo output 
+		paFloat32,  // 32 bit floating point output
 		44100,
-		256,        /* frames per buffer, i.e. the number
+		256,        // frames per buffer, i.e. the number
 						   of sample frames that PortAudio will
 						   request from the callback. Many apps
 						   may want to use
 						   paFramesPerBufferUnspecified, which
 						   tells PortAudio to pick the best,
-						   possibly changing, buffer size.*/
-		patestCallback, /* this is your callback function */
-		&data); /*This is a pointer that will be passed to
+						   possibly changing, buffer size.
+		patestCallback, // this is your callback function
+		&data); //This is a pointer that will be passed to
 						   your callback*/
+
+	err = Pa_OpenStream(&stream,
+		&inputParameters,          // no input channels 
+		NULL,          // stereo output 
+		SAMPLE_RATE,
+		FRAMES_PER_BUFFER,        // frames per buffer, i.e. the number
+		paNoFlag,
+		recordCallback, // this is your callback function
+		&data);
 	
 	if (err != paNoError) {
-		std::cout << "PortAudio Error while open stream" << std::endl;
+		std::cout << "PortAudio Error while open stream: " << Pa_GetErrorText(err) << std::endl;
 		abort();
 	}
 

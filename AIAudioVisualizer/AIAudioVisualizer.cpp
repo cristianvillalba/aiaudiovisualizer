@@ -5,9 +5,11 @@ int main(int argc, char* argv[])
 {
 	AudioVisualizer* audio = new AudioVisualizer();
 
-	audio->init();
-	audio->loadModel();
-	audio->initSound();
+	//------------tensorflow init------------------
+	//audio->init();
+	//audio->loadModel();
+	//audio->initSound();
+	//------------tensorflow init------------------
 
 	VulkanEngine engine;
 
