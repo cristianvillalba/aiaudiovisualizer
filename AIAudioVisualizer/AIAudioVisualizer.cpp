@@ -3,14 +3,6 @@
 
 int main(int argc, char* argv[])
 {
-	AudioVisualizer* audio = new AudioVisualizer();
-
-	//------------tensorflow init------------------
-	//audio->init();
-	//audio->loadModel();
-	//audio->initSound();
-	//------------tensorflow init------------------
-
 	VulkanEngine engine;
 
 	engine.init();

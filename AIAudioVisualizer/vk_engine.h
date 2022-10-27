@@ -19,6 +19,7 @@
 
 #include <windows.h>
 
+#include "AIAudioVisualizer.h"
 #include "portaudio.h"
 
 
@@ -41,7 +42,7 @@ paTestData;
 
 #define SAMPLE_RATE  (44100)
 #define FRAMES_PER_BUFFER (512)
-#define NUM_SECONDS     (5)
+#define NUM_SECONDS     (10)
 #define NUM_CHANNELS    (2)
 /* #define DITHER_FLAG     (paDitherOff) */
 #define DITHER_FLAG     (0) /**/
@@ -165,6 +166,7 @@ public:
 	//-----------Audio Section--------------
 	paTestData data;
 	PaStream* stream;
+	AudioVisualizer* audioAI;
 	//-----------Audio Section--------------
 
 	bool _isInitialized{ false };

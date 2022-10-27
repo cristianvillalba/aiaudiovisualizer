@@ -84,6 +84,17 @@ static int recordCallback(const void* inputBuffer, void* outputBuffer,
 
 	if (framesLeft < framesPerBuffer)
 	{
+		////signal that we can use the frame
+		//data->frameIndex = 0;//go back index to starting point
+		//framesToCalc = framesLeft;
+		////std::cout << "Frames ready..." << std::endl;
+		////for (int i = 0; i < 10; i++)
+		////{
+		////	std::cout << data->recordedSamples[i] << std::endl;
+		////}
+		//finished = paContinue;
+
+		//---Original processing----
 		framesToCalc = framesLeft;
 		finished = paComplete;
 
@@ -1429,10 +1440,9 @@ void VulkanEngine::init_sound()
 
 	memset(&inputParameters, 0, sizeof(inputParameters));//not necessary if you are filling in all the fields
 	inputParameters.channelCount = NUM_CHANNELS;
-	inputParameters.device = 15; //realtek audio capture
+	inputParameters.device = 2; //realtek audio capture
 	inputParameters.sampleFormat = PA_SAMPLE_TYPE;
-	inputParameters.suggestedLatency = Pa_GetDeviceInfo(15)->defaultLowInputLatency;
-	//inputParameters.suggestedLatency = Pa_GetDeviceInfo(15)->defaultHighInputLatency;
+	inputParameters.suggestedLatency = Pa_GetDeviceInfo(15)->defaultHighInputLatency;
 	inputParameters.hostApiSpecificStreamInfo = NULL; //See you specific host's API docs for info on using this field
 
 	/* initialise sinusoidal wavetable
@@ -1464,7 +1474,7 @@ void VulkanEngine::init_sound()
 		&inputParameters,          // no input channels 
 		NULL,          // stereo output 
 		SAMPLE_RATE,
-		FRAMES_PER_BUFFER,        // frames per buffer, i.e. the number
+		FRAMES_PER_BUFFER,        // frames per buffer
 		paNoFlag,
 		recordCallback, // this is your callback function
 		&data);
@@ -1479,4 +1489,12 @@ void VulkanEngine::init_sound()
 		std::cout << "PortAudio Error while start stream" << std::endl;
 		abort();
 	}
+
+	audioAI = new AudioVisualizer();
+
+	//------------tensorflow init------------------
+	audioAI->init();
+	//audioAI->loadModel();
+	//audioAI->initSound();
+	//------------tensorflow init------------------
 }
