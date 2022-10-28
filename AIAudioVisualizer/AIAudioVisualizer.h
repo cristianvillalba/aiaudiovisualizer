@@ -25,8 +25,26 @@ class AudioVisualizer
 public:
 	void init();
 	int loadModel();
-	int initSound();
+	int initSound(int samplesperchannel);
+	int predict(float* samples, int numchannels, float* bufflstart, float* buffrstart);
+	int getNumberOfFrames();
+	int freeMem();
 private:
 	cppflow::model* model;
-	
+
+	gam::STFT * stftl;
+	gam::STFT * stftr;
+
+	xt::xarray<float> superarray; //all frames
+	xt::xarray<float> arraytransposed;
+	xt::xarray<float> phasetransposed;
+
+	xt::xarray<double> stftpredicted;
+	xt::xarray<double> softmasks;
+	xt::xarray<double> sources;
+
+	int numSamples;
+	int nframes; //hop size + 2 because it's padded with 0s
+	int currentFrame;
+	float scale = 2.0000630488853100000;
 };

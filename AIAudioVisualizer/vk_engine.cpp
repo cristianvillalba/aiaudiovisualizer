@@ -84,19 +84,20 @@ static int recordCallback(const void* inputBuffer, void* outputBuffer,
 
 	if (framesLeft < framesPerBuffer)
 	{
-		////signal that we can use the frame
-		//data->frameIndex = 0;//go back index to starting point
-		//framesToCalc = framesLeft;
-		////std::cout << "Frames ready..." << std::endl;
-		////for (int i = 0; i < 10; i++)
-		////{
-		////	std::cout << data->recordedSamples[i] << std::endl;
-		////}
-		//finished = paContinue;
-
-		//---Original processing----
+		//signal that we can use the frame
+		data->frameIndex = 0;//go back index to starting point
 		framesToCalc = framesLeft;
-		finished = paComplete;
+		//std::cout << "Frames ready..." << std::endl;
+		//for (int i = 0; i < 10; i++)
+		//{
+		//	std::cout << data->recordedSamples[i] << std::endl;
+		//}
+		data->aipredicter->predict(data->recordedSamples, 2, data->bufferpredictl, data->bufferpredictr);
+		finished = paContinue;
+
+		////---Original processing----
+		//framesToCalc = framesLeft;
+		//finished = paComplete;
 
 #if WRITE_TO_FILE
 		{
@@ -206,6 +207,8 @@ void VulkanEngine::cleanup()
 		SDL_DestroyWindow(_window);
 
 		//kill sound
+		audioAI->freeMem();
+		delete audioAI;
 		free(data.recordedSamples);//freeing dynamic allocation
 
 		int err = Pa_StopStream(stream);
@@ -1387,6 +1390,13 @@ void VulkanEngine::init_sound()
 	int                 numBytes;
 	SAMPLE              max, val;
 	double              average;
+
+	audioAI = new AudioVisualizer();
+
+	//------------tensorflow init------------------
+	audioAI->init();
+	audioAI->loadModel();
+	//------------tensorflow init------------------
 	
 	err = Pa_Initialize();
 	if (err != paNoError) {
@@ -1425,6 +1435,8 @@ void VulkanEngine::init_sound()
 
 	}
 
+
+	//Init structure to communicate with the portaudio callback
 	data.maxFrameIndex = totalFrames = NUM_SECONDS * SAMPLE_RATE; /* Record for a few seconds. */
 	data.frameIndex = 0;
 	numSamples = totalFrames * NUM_CHANNELS;
@@ -1470,6 +1482,21 @@ void VulkanEngine::init_sound()
 		&data); //This is a pointer that will be passed to
 						   your callback*/
 
+	audioAI->initSound(totalFrames); //sending number of samples per channel
+
+	bufferpredict = new AudioFile<float>::AudioBuffer();
+	bufferpredict->resize(2);
+	bufferpredict->at(0).resize(audioAI->getNumberOfFrames() * 512 + 2048); //number of frames plus hop size
+	bufferpredict->at(1).resize(audioAI->getNumberOfFrames() * 512 + 2048); //number of frames plus hop size
+
+
+	float* bufferindexl = &bufferpredict->at(0)[0];
+	float* bufferindexr = &bufferpredict->at(1)[0];
+
+	data.aipredicter = audioAI;
+	data.bufferpredictl = bufferindexl;
+	data.bufferpredictr = bufferindexr;
+
 	err = Pa_OpenStream(&stream,
 		&inputParameters,          // no input channels 
 		NULL,          // stereo output 
@@ -1490,11 +1517,5 @@ void VulkanEngine::init_sound()
 		abort();
 	}
 
-	audioAI = new AudioVisualizer();
 
-	//------------tensorflow init------------------
-	audioAI->init();
-	//audioAI->loadModel();
-	//audioAI->initSound();
-	//------------tensorflow init------------------
 }
