@@ -62,6 +62,7 @@ typedef struct
 	AudioVisualizer* aipredicter;
 	float* bufferpredictl;
 	float* bufferpredictr;
+	AudioFile<float>::AudioBuffer* waveout;
 }
 paTestData;
 
@@ -264,6 +265,7 @@ public:
 
 	void immediate_submit(std::function<void(VkCommandBuffer cmd)>&& function);
 private:
+	bool showGUI;
 
 	void init_vulkan();
 

@@ -16,7 +16,8 @@ int main(int argc, char* argv[])
 
 void AudioVisualizer::init()
 {
-	printf("Init TensorFlow C library version %s\n", TF_Version());
+	std::cout << "Init TensorFlow C library version " << TF_Version() << std::endl;
+	logAI.AddLog("[%s] - %s %s\n", "info", "Init TensorFlow C library version", TF_Version());
 }
 
 int AudioVisualizer::loadModel()
@@ -25,10 +26,16 @@ int AudioVisualizer::loadModel()
 	auto operations = model->get_operations();
 
 	std::cout << "Load graph success" << std::endl;
+	logAI.AddLog("[%s] - %s\n","info", "Load graph success");
+
 	std::cout << "Checking operations..." << std::endl;
+	logAI.AddLog("[%s] - %s\n","info", "Checking operations...");
+
 	for (int i = 0; i < operations.size(); i++)
 	{
 		std::cout << operations[i] << std::endl;
+
+		logAI.AddLog("[%s] - %s\n", "info", operations[i].c_str());
 	}
 	return 0;
 }
@@ -222,7 +229,7 @@ int AudioVisualizer::predict(float* samples, int numchannels, float * bufflstart
 		bufferindexr += 512; //hop size
 	}
 
-	std::cout << "prediction done..." << std::endl;
+	//std::cout << "prediction done..." << std::endl;
 
 	return  0;
 }

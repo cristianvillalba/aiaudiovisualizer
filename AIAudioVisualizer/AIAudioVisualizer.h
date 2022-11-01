@@ -18,6 +18,8 @@
 #include <xtensor/xio.hpp>
 #include <xtensor/xview.hpp>
 
+#include "imgui_ai.h"
+
 using namespace xt;
 // TODO: Reference additional headers your program requires here.
 class AudioVisualizer

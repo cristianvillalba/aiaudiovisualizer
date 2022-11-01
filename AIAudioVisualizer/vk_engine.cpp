@@ -87,12 +87,14 @@ static int recordCallback(const void* inputBuffer, void* outputBuffer,
 		//signal that we can use the frame
 		data->frameIndex = 0;//go back index to starting point
 		framesToCalc = framesLeft;
-		//std::cout << "Frames ready..." << std::endl;
-		//for (int i = 0; i < 10; i++)
-		//{
-		//	std::cout << data->recordedSamples[i] << std::endl;
-		//}
+
 		data->aipredicter->predict(data->recordedSamples, 2, data->bufferpredictl, data->bufferpredictr);
+		
+		//----Test wave out
+		//AudioFile<float> audioFile;
+		//bool ok = audioFile.setAudioBuffer(*data->waveout);
+		//audioFile.save("voice.wav", AudioFileFormat::Wave);
+
 		finished = paContinue;
 
 		////---Original processing----
@@ -357,6 +359,8 @@ void VulkanEngine::run()
 					{
 						_selectedShader = 0;
 					}
+
+					showGUI = !showGUI;
 				}
 			}
 		}
@@ -368,7 +372,8 @@ void VulkanEngine::run()
 		ImGui::NewFrame();
 
 		//imgui commands
-		ImGui::ShowDemoWindow();
+		//ImGui::ShowDemoWindow(); //examples from DearIMGUI
+		ImGui::ShowGUI(&showGUI);
 
 		draw();
 	}
@@ -1404,7 +1409,10 @@ void VulkanEngine::init_sound()
 		abort();
 	}
 
+	logAI.AddLog("[%s] ##############################################\n","info");
+
 	std::cout << "PortAudio version: " << Pa_GetVersion() << std::endl;
+	logAI.AddLog("[%s] - %s %d\n", "info", "PortAudio version:", Pa_GetVersion());
 
 	int numDevices = Pa_GetDeviceCount();
 	
@@ -1415,10 +1423,16 @@ void VulkanEngine::init_sound()
 	}
 
 	std::cout << "Number of devices = " << numDevices << std::endl;
+	logAI.AddLog("[%s] - %s %d\n", "info", "Number of devices =", numDevices);
+
 	for (int i = 0; i < numDevices; i++)
 	{
 		std::cout << "------------------------------------------------------" << std::endl;
 		std::cout << "Device number: " << i << std::endl;
+
+		logAI.AddLog("[%s] -------------------------------------------------------\n", "info");
+		logAI.AddLog("[%s] - %s %d\n", "info", "Device number:", i);
+
 		deviceInfo = Pa_GetDeviceInfo(i);
 		wchar_t wideName[MAX_PATH];
 		MultiByteToWideChar(CP_UTF8, 0, deviceInfo->name, -1, wideName, MAX_PATH - 1);
@@ -1432,6 +1446,15 @@ void VulkanEngine::init_sound()
 		std::cout << "Default low output latency  = " << deviceInfo->defaultLowOutputLatency << std::endl;
 		std::cout << "Default high input latency  = " << deviceInfo->defaultHighInputLatency << std::endl;
 		std::cout << "Default high output latency = " << deviceInfo->defaultHighOutputLatency << std::endl;
+
+		logAI.AddLog("[%s] - %s %s\n", "info", "Name =", wideName);
+		logAI.AddLog("[%s] - %s %s\n", "info", "Host API =", Pa_GetHostApiInfo(deviceInfo->hostApi)->name);
+		logAI.AddLog("[%s] - %s %d\n", "info", "Max inputs =", deviceInfo->maxInputChannels);
+		logAI.AddLog("[%s] - %s %d\n", "info", "Max outputs =", deviceInfo->maxOutputChannels);
+		logAI.AddLog("[%s] - %s %f\n", "info", "Default low input latency   =", deviceInfo->defaultLowInputLatency);
+		logAI.AddLog("[%s] - %s %f\n", "info", "Default low output latency  =", deviceInfo->defaultLowOutputLatency);
+		logAI.AddLog("[%s] - %s %f\n", "info", "Default high input latency = ", deviceInfo->defaultHighInputLatency);
+		logAI.AddLog("[%s] - %s %f\n", "info", "Default high output latency =", deviceInfo->defaultHighOutputLatency);
 
 	}
 
@@ -1496,6 +1519,7 @@ void VulkanEngine::init_sound()
 	data.aipredicter = audioAI;
 	data.bufferpredictl = bufferindexl;
 	data.bufferpredictr = bufferindexr;
+	data.waveout = bufferpredict;
 
 	err = Pa_OpenStream(&stream,
 		&inputParameters,          // no input channels 
