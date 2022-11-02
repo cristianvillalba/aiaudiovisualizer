@@ -31,37 +31,7 @@ using namespace std;
 	} while (0)
 
 
-/* This routine will be called by the PortAudio engine when audio is needed.
- * It may called at interrupt level on some machines so don't do anything
- * that could mess up the system like calling malloc() or free().
-*/
-/*
-static int patestCallback(const void* inputBuffer, void* outputBuffer,
-	unsigned long framesPerBuffer,
-	const PaStreamCallbackTimeInfo * timeInfo,
-	PaStreamCallbackFlags statusFlags,
-	void* userData)
-{
-	paTestData* data = (paTestData*)userData;
-	float* out = (float*)outputBuffer;
-	unsigned long i;
-
-	(void)timeInfo; // Prevent unused variable warnings
-	(void)statusFlags;
-	(void)inputBuffer;
-
-	//for (i = 0; i < framesPerBuffer; i++)
-	//{
-	//	*out++ = data->sine[data->left_phase];  // left
-	//	*out++ = data->sine[data->right_phase];  // right 
-	//	data->left_phase += 1;
-	//	if (data->left_phase >= TABLE_SIZE) data->left_phase -= TABLE_SIZE;
-	//	data->right_phase += 3; // higher pitch so we can distinguish left and right.
-	//	if (data->right_phase >= TABLE_SIZE) data->right_phase -= TABLE_SIZE;
-	//}
-
-	//return PaStreamCallbackResult::paContinue;
-}*/
+struct paTestData audioData; //definition of global struct
 
 static int recordCallback(const void* inputBuffer, void* outputBuffer,
 	unsigned long framesPerBuffer,
@@ -88,11 +58,13 @@ static int recordCallback(const void* inputBuffer, void* outputBuffer,
 		data->frameIndex = 0;//go back index to starting point
 		framesToCalc = framesLeft;
 
-		data->aipredicter->predict(data->recordedSamples, 2, data->bufferpredictl, data->bufferpredictr);
+		AudioVisualizer* aipredicter = (AudioVisualizer*)data->aipredicter;
+		aipredicter->predict(data->recordedSamples, 2, data->bufferpredictl, data->bufferpredictr);
 		
-		//----Test wave out
+		////----Test wave out
 		//AudioFile<float> audioFile;
-		//bool ok = audioFile.setAudioBuffer(*data->waveout);
+		//AudioFile<float>::AudioBuffer* waveconverted = (AudioFile<float>::AudioBuffer*)data->waveout;
+		//bool ok = audioFile.setAudioBuffer(*waveconverted);
 		//audioFile.save("voice.wav", AudioFileFormat::Wave);
 
 		finished = paContinue;
@@ -211,7 +183,7 @@ void VulkanEngine::cleanup()
 		//kill sound
 		audioAI->freeMem();
 		delete audioAI;
-		free(data.recordedSamples);//freeing dynamic allocation
+		free(audioData.recordedSamples);//freeing dynamic allocation
 
 		int err = Pa_StopStream(stream);
 		if (err != paNoError) {
@@ -1460,17 +1432,17 @@ void VulkanEngine::init_sound()
 
 
 	//Init structure to communicate with the portaudio callback
-	data.maxFrameIndex = totalFrames = NUM_SECONDS * SAMPLE_RATE; /* Record for a few seconds. */
-	data.frameIndex = 0;
+	audioData.maxFrameIndex = totalFrames = NUM_SECONDS * SAMPLE_RATE; /* Record for a few seconds. */
+	audioData.frameIndex = 0;
 	numSamples = totalFrames * NUM_CHANNELS;
 	numBytes = numSamples * sizeof(SAMPLE);
-	data.recordedSamples = (SAMPLE*)malloc(numBytes); /* From now on, recordedSamples is initialised. */
-	if (data.recordedSamples == NULL)
+	audioData.recordedSamples = (SAMPLE*)malloc(numBytes); /* From now on, recordedSamples is initialised. */
+	if (audioData.recordedSamples == NULL)
 	{
 		std::cout << "Could not allocate record array" << std::endl;
 		abort();
 	}
-	for (i = 0; i < numSamples; i++) data.recordedSamples[i] = 0;
+	for (i = 0; i < numSamples; i++) audioData.recordedSamples[i] = 0;
 	
 
 	memset(&inputParameters, 0, sizeof(inputParameters));//not necessary if you are filling in all the fields
@@ -1516,10 +1488,10 @@ void VulkanEngine::init_sound()
 	float* bufferindexl = &bufferpredict->at(0)[0];
 	float* bufferindexr = &bufferpredict->at(1)[0];
 
-	data.aipredicter = audioAI;
-	data.bufferpredictl = bufferindexl;
-	data.bufferpredictr = bufferindexr;
-	data.waveout = bufferpredict;
+	audioData.aipredicter = audioAI;
+	audioData.bufferpredictl = bufferindexl;
+	audioData.bufferpredictr = bufferindexr;
+	audioData.waveout = bufferpredict;
 
 	err = Pa_OpenStream(&stream,
 		&inputParameters,          // no input channels 
@@ -1528,7 +1500,7 @@ void VulkanEngine::init_sound()
 		FRAMES_PER_BUFFER,        // frames per buffer
 		paNoFlag,
 		recordCallback, // this is your callback function
-		&data);
+		&audioData);
 	
 	if (err != paNoError) {
 		std::cout << "PortAudio Error while open stream: " << Pa_GetErrorText(err) << std::endl;

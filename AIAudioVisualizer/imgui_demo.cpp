@@ -164,8 +164,9 @@ Index of this file:
 #endif
 #endif
 
+//-----------Custom Headers declarations----------------------
 #include "imgui_ai.h" //AIVisualizer types
-
+#include "portAudioStructs.h"
 //-----------------------------------------------------------------------------
 // [SECTION] Forward Declarations, Helpers
 //-----------------------------------------------------------------------------
@@ -7971,7 +7972,7 @@ void ImGui::ShowStyleEditor(ImGuiStyle*) {}
 #endif // #ifndef IMGUI_DISABLE
 
 //----------------------------AI App section-----------------------------
-struct AIAppLog logAI;
+struct AIAppLog logAI; //definition of global struct
 
 // Demonstrate creating a simple log window with basic filtering.
 static void ShowAIAppLog(bool* p_open)
@@ -7998,8 +7999,36 @@ static void ShowAIAppLog(bool* p_open)
     }
     ImGui::End();*/
 
+    ImGui::Begin("AIVisualizer console Log", NULL);
+    // Generate samples and plot them
+    float samples[100];
+    int startingframes = audioData.visualoffset;
+    for (int n = 0; n < 100; n++) {
+        samples[n] = audioData.recordedSamples[startingframes];
+        startingframes += 2;
+    }
+        //samples[n] = sinf(n * 0.2f + ImGui::GetTime() * 1.5f);
+    ImGui::PlotLines("Left samples", samples, 100);
+
+    startingframes = audioData.visualoffset + 1;
+    for (int n = 0; n < 100; n++) {
+        samples[n] = audioData.recordedSamples[startingframes];
+        startingframes += 2;
+    }
+    ImGui::PlotLines("Right samples", samples, 100);
+
+    audioData.visualoffset += 2;
+
+    if (audioData.visualoffset == audioData.maxFrameIndex - 200)
+    {
+        audioData.visualoffset = 0;
+    }
+
+    ImGui::End();
+
     // Actually call in the regular Log helper (which will Begin() into the same window as we just did)
-    logAI.Draw("AIVisualizer console Log", p_open);
+    //logAI.Draw("AIVisualizer console Log", p_open);
+    logAI.Draw("AIVisualizer console Log", NULL);
 }
 
 

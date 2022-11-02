@@ -21,50 +21,13 @@
 
 #include "AIAudioVisualizer.h"
 #include "portaudio.h"
-
+#include "portAudioStructs.h"
 
 
 #ifdef _DEBUG
 #define IMGUI_VULKAN_DEBUG_REPORT
 #endif
 
-/*
-#define TABLE_SIZE   (200)
-typedef struct
-{
-	float sine[TABLE_SIZE];
-	int left_phase;
-	int right_phase;
-	char message[20];
-}
-paTestData;
-*/
-
-#define SAMPLE_RATE  (44100)
-#define FRAMES_PER_BUFFER (512)
-#define NUM_SECONDS     (1)
-#define NUM_CHANNELS    (2)
-/* #define DITHER_FLAG     (paDitherOff) */
-#define DITHER_FLAG     (0) /**/
-#define WRITE_TO_FILE   (0)
-
-/* Sample format. */
-#define PA_SAMPLE_TYPE  paFloat32
-typedef float SAMPLE;
-#define SAMPLE_SILENCE  (0.0f)
-#define PRINTF_S_FORMAT "%.8f"
-
-typedef struct
-{
-	int          frameIndex;  /* Index into sample array. */
-	int          maxFrameIndex;
-	SAMPLE* recordedSamples;
-	AudioVisualizer* aipredicter;
-	float* bufferpredictl;
-	float* bufferpredictr;
-	AudioFile<float>::AudioBuffer* waveout;
-}
-paTestData;
 
 class PipelineBuilder {
 public:
@@ -168,7 +131,7 @@ constexpr unsigned int FRAME_OVERLAP = 2;
 class VulkanEngine {
 public:
 	//-----------Audio Section--------------
-	paTestData data;
+	//paTestData data;//this will be global
 	PaStream* stream;
 	AudioVisualizer* audioAI;
 	AudioFile<float>::AudioBuffer* bufferpredict;
