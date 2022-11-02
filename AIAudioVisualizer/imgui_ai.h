@@ -1,3 +1,8 @@
+#ifndef IMGUI_AI_H
+#define IMGUI_AI_H
+
+
+
 #include "imgui.h"
 //-----------------------------------------------------------------------------
 // [SECTION] Example App: Debug Log / ShowExampleAppLog()
@@ -128,3 +133,5 @@ struct AIAppLog
 };
 
 extern struct AIAppLog logAI; //this instance is defined in imgui_demo.cpp
+
+#endif // !IMGUI_AI_H

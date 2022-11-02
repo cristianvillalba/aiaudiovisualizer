@@ -1397,6 +1397,9 @@ void VulkanEngine::init_sound()
 	std::cout << "Number of devices = " << numDevices << std::endl;
 	logAI.AddLog("[%s] - %s %d\n", "info", "Number of devices =", numDevices);
 
+	audioData.devices = new std::vector<std::string>();
+	audioData.deviceselection = 0;//it must be 2 in my computer
+
 	for (int i = 0; i < numDevices; i++)
 	{
 		std::cout << "------------------------------------------------------" << std::endl;
@@ -1428,6 +1431,10 @@ void VulkanEngine::init_sound()
 		logAI.AddLog("[%s] - %s %f\n", "info", "Default high input latency = ", deviceInfo->defaultHighInputLatency);
 		logAI.AddLog("[%s] - %s %f\n", "info", "Default high output latency =", deviceInfo->defaultHighOutputLatency);
 
+		wstring ws(wideName);
+		// your new String
+		string str(ws.begin(), ws.end());
+		audioData.devices->push_back(str);
 	}
 
 
@@ -1447,35 +1454,10 @@ void VulkanEngine::init_sound()
 
 	memset(&inputParameters, 0, sizeof(inputParameters));//not necessary if you are filling in all the fields
 	inputParameters.channelCount = NUM_CHANNELS;
-	inputParameters.device = 2; //realtek audio capture
+	inputParameters.device = 0; //realtek audio capture - it must be 2 in my computer
 	inputParameters.sampleFormat = PA_SAMPLE_TYPE;
 	inputParameters.suggestedLatency = Pa_GetDeviceInfo(15)->defaultHighInputLatency;
 	inputParameters.hostApiSpecificStreamInfo = NULL; //See you specific host's API docs for info on using this field
-
-	/* initialise sinusoidal wavetable
-	for (int i = 0; i < TABLE_SIZE; i++)
-	{
-		data.sine[i] = (float)sin(((double)i / (double)TABLE_SIZE) * M_PI * 2.);
-	}
-	data.left_phase = data.right_phase = 0;
-	*/
-
-	/* Open an audio I/O stream.
-	err = Pa_OpenDefaultStream(&stream,
-		0,          // no input channels 
-		2,          // stereo output 
-		paFloat32,  // 32 bit floating point output
-		44100,
-		256,        // frames per buffer, i.e. the number
-						   of sample frames that PortAudio will
-						   request from the callback. Many apps
-						   may want to use
-						   paFramesPerBufferUnspecified, which
-						   tells PortAudio to pick the best,
-						   possibly changing, buffer size.
-		patestCallback, // this is your callback function
-		&data); //This is a pointer that will be passed to
-						   your callback*/
 
 	audioAI->initSound(totalFrames); //sending number of samples per channel
 
@@ -1514,4 +1496,36 @@ void VulkanEngine::init_sound()
 	}
 
 
+}
+
+void VulkanEngine::SwitchDevice(int device)
+{
+	PaStreamParameters inputParameters;
+	PaError err;
+
+	memset(&inputParameters, 0, sizeof(inputParameters));//not necessary if you are filling in all the fields
+	inputParameters.channelCount = NUM_CHANNELS;
+	inputParameters.device = device; //device from outside
+	inputParameters.sampleFormat = PA_SAMPLE_TYPE;
+	inputParameters.suggestedLatency = Pa_GetDeviceInfo(15)->defaultHighInputLatency;
+	inputParameters.hostApiSpecificStreamInfo = NULL; //See you specific host's API docs for info on using this field
+
+	err = Pa_StopStream(stream);
+	if (err != paNoError) {
+		std::cout << "PortAudio error stop: " << Pa_GetErrorText(err) << std::endl;
+	}
+
+	err = Pa_CloseStream(stream);
+	if (err != paNoError) {
+		std::cout << "PortAudio error close: " << Pa_GetErrorText(err) << std::endl;
+	}
+
+	err = Pa_OpenStream(&stream,
+		&inputParameters,          // no input channels 
+		NULL,          // stereo output 
+		SAMPLE_RATE,
+		FRAMES_PER_BUFFER,        // frames per buffer
+		paNoFlag,
+		recordCallback, // this is your callback function
+		&audioData);
 }

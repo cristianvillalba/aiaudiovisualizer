@@ -165,6 +165,7 @@ Index of this file:
 #endif
 
 //-----------Custom Headers declarations----------------------
+#include "vk_engine.h"
 #include "imgui_ai.h" //AIVisualizer types
 #include "portAudioStructs.h"
 //-----------------------------------------------------------------------------
@@ -8000,6 +8001,22 @@ static void ShowAIAppLog(bool* p_open)
     ImGui::End();*/
 
     ImGui::Begin("AIVisualizer console Log", NULL);
+
+    char** items = new char*[audioData.devices->size()];
+    static int selected = audioData.deviceselection;
+    for (size_t i = 0; i < audioData.devices->size(); i++) {
+        items[i] = new char[audioData.devices->at(i).size() + 1];
+        strcpy(items[i], audioData.devices->at(i).c_str());
+    }
+    ImGui::ListBox("Sound devices", &audioData.deviceselection, items, audioData.devices->size(), 2);
+
+    if (selected != audioData.deviceselection)
+    {
+        printf("change!\n");
+        engine.SwitchDevice(audioData.deviceselection);
+        selected = audioData.deviceselection;
+    }
+
     // Generate samples and plot them
     float samples[100];
     int startingframes = audioData.visualoffset;
@@ -8007,7 +8024,6 @@ static void ShowAIAppLog(bool* p_open)
         samples[n] = audioData.recordedSamples[startingframes];
         startingframes += 2;
     }
-        //samples[n] = sinf(n * 0.2f + ImGui::GetTime() * 1.5f);
     ImGui::PlotLines("Left samples", samples, 100);
 
     startingframes = audioData.visualoffset + 1;
@@ -8027,7 +8043,6 @@ static void ShowAIAppLog(bool* p_open)
     ImGui::End();
 
     // Actually call in the regular Log helper (which will Begin() into the same window as we just did)
-    //logAI.Draw("AIVisualizer console Log", p_open);
     logAI.Draw("AIVisualizer console Log", NULL);
 }
 

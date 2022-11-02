@@ -1,3 +1,10 @@
+#ifndef PORTAUDIOSTRUCT_H
+#define PORTAUDIOSTRUCT_H
+
+
+#include <vector>
+#include <string>
+
 #define SAMPLE_RATE  (44100)
 #define FRAMES_PER_BUFFER (512)
 #define NUM_SECONDS     (1)
@@ -22,6 +29,11 @@ struct paTestData
 	float* bufferpredictl;
 	float* bufferpredictr;
 	void* waveout;
+
+	std::vector<std::string> * devices;
+	int deviceselection;
 };
 
 extern struct paTestData audioData; //this instance is defined in vk_engine.cpp
+
+#endif

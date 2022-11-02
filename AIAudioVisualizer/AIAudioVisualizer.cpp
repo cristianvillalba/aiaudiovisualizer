@@ -1,10 +1,10 @@
 ﻿#include <AIAudioVisualizer.h>
 #include <vk_engine.h>
 
+VulkanEngine engine;
+
 int main(int argc, char* argv[])
 {
-	VulkanEngine engine;
-
 	engine.init();
 
 	engine.run();

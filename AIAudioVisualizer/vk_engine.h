@@ -3,6 +3,10 @@
 
 #pragma once
 
+#ifndef VKENGINE_H
+#define VKENGINE_H
+
+
 #include <vk_types.h>
 #include <vector>
 #include <functional>
@@ -227,6 +231,8 @@ public:
 	size_t pad_uniform_buffer_size(size_t originalSize);
 
 	void immediate_submit(std::function<void(VkCommandBuffer cmd)>&& function);
+
+	void SwitchDevice(int device);
 private:
 	bool showGUI;
 
@@ -259,3 +265,6 @@ private:
 
 	void init_sound();
 };
+
+extern VulkanEngine engine;
+#endif

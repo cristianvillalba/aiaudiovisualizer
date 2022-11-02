@@ -31,6 +31,7 @@ public:
 	int predict(float* samples, int numchannels, float* bufflstart, float* buffrstart);
 	int getNumberOfFrames();
 	int freeMem();
+
 private:
 	cppflow::model* model;
 
