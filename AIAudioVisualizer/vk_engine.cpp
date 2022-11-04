@@ -896,15 +896,41 @@ void VulkanEngine::load_meshes()
 	triMesh._vertices[2].color = { 0.f,1.f, 0.0f }; //pure green
 	//we dont care about the vertex normals
 
+	//-----------------------------
+	Mesh quadMesh{};
+	quadMesh._vertices.resize(4);
+	//vertex positions
+	quadMesh._vertices[0].position = { 1.f,1.f, 0.0f };
+	quadMesh._vertices[1].position = { -1.f,1.f, 0.0f };
+	quadMesh._vertices[2].position = { -1.f,-1.f, 0.0f };
+	quadMesh._vertices[3].position = { 1.f,-1.0f, 0.0f };
+
+	quadMesh._indexes.push_back(0);
+	quadMesh._indexes.push_back(1);
+	quadMesh._indexes.push_back(2);
+	quadMesh._indexes.push_back(2);
+	quadMesh._indexes.push_back(3);
+	quadMesh._indexes.push_back(0);
+
+	//vertex colors, all green
+	quadMesh._vertices[0].color = { 0.f,1.f, 0.0f }; //pure green
+	quadMesh._vertices[1].color = { 0.f,1.f, 0.0f }; //pure green
+	quadMesh._vertices[2].color = { 0.f,1.f, 0.0f }; //pure green
+	quadMesh._vertices[3].color = { 0.f,1.f, 0.0f }; //pure green
+	//we dont care about the vertex normals
+
 	//load the monkey
 	Mesh monkeyMesh{};
 	monkeyMesh.load_from_obj("assets/monkey_smooth.obj");
 
 	upload_mesh(triMesh);
 	upload_mesh(monkeyMesh);
+	upload_meshPlus(quadMesh);
+
 
 	_meshes["monkey"] = monkeyMesh;
 	_meshes["triangle"] = triMesh;
+	_meshes["quad"] = quadMesh;
 }
 
 
@@ -943,6 +969,79 @@ void VulkanEngine::upload_mesh(Mesh& mesh)
 	memcpy(data, mesh._vertices.data(), mesh._vertices.size() * sizeof(Vertex));
 
 	vmaUnmapMemory(_allocator, mesh._vertexBuffer._allocation);
+}
+
+void VulkanEngine::upload_meshPlus(Mesh& mesh)
+{
+	//allocate vertex buffer
+	VkBufferCreateInfo bufferInfo = {};
+	bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+	bufferInfo.pNext = nullptr;
+	//this is the total size, in bytes, of the buffer we are allocating
+	bufferInfo.size = mesh._vertices.size() * sizeof(Vertex);
+	//this buffer is going to be used as a Vertex Buffer
+	bufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+
+
+	//let the VMA library know that this data should be writeable by CPU, but also readable by GPU
+	VmaAllocationCreateInfo vmaallocInfo = {};
+	vmaallocInfo.usage = VMA_MEMORY_USAGE_CPU_TO_GPU;
+
+	//allocate the buffer
+	VK_CHECK(vmaCreateBuffer(_allocator, &bufferInfo, &vmaallocInfo,
+		&mesh._vertexBuffer._buffer,
+		&mesh._vertexBuffer._allocation,
+		nullptr));
+
+	//add the destruction of triangle mesh buffer to the deletion queue
+	_mainDeletionQueue.push_function([=]() {
+
+		vmaDestroyBuffer(_allocator, mesh._vertexBuffer._buffer, mesh._vertexBuffer._allocation);
+	});
+
+	//copy vertex data
+	void* data;
+	vmaMapMemory(_allocator, mesh._vertexBuffer._allocation, &data);
+
+	memcpy(data, mesh._vertices.data(), mesh._vertices.size() * sizeof(Vertex));
+
+	vmaUnmapMemory(_allocator, mesh._vertexBuffer._allocation);
+
+	//-------------------------Index upload-----------------
+	//allocate vertex buffer
+	bufferInfo = {};
+	bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+	bufferInfo.pNext = nullptr;
+	//this is the total size, in bytes, of the buffer we are allocating
+	bufferInfo.size = mesh._indexes.size() * sizeof(uint16_t);
+	//this buffer is going to be used as a Vertex Buffer
+	bufferInfo.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
+
+
+	//let the VMA library know that this data should be writeable by CPU, but also readable by GPU
+	vmaallocInfo = {};
+	vmaallocInfo.usage = VMA_MEMORY_USAGE_CPU_TO_GPU;
+
+	//allocate the buffer
+	VK_CHECK(vmaCreateBuffer(_allocator, &bufferInfo, &vmaallocInfo,
+		&mesh._indexBuffer._buffer,
+		&mesh._indexBuffer._allocation,
+		nullptr));
+
+	//add the destruction of triangle mesh buffer to the deletion queue
+	_mainDeletionQueue.push_function([=]() {
+
+		vmaDestroyBuffer(_allocator, mesh._indexBuffer._buffer, mesh._indexBuffer._allocation);
+	});
+
+	//copy vertex data
+	void* dataindex;
+	vmaMapMemory(_allocator, mesh._indexBuffer._allocation, &dataindex);
+
+	memcpy(dataindex, mesh._indexes.data(), mesh._indexes.size() * sizeof(uint16_t));
+
+	vmaUnmapMemory(_allocator, mesh._indexBuffer._allocation);
+
 }
 
 
@@ -1068,9 +1167,22 @@ void VulkanEngine::draw_objects(VkCommandBuffer cmd,RenderObject* first, int cou
 			VkDeviceSize offset = 0;
 			vkCmdBindVertexBuffers(cmd, 0, 1, &object.mesh->_vertexBuffer._buffer, &offset);
 			lastMesh = object.mesh;
+
+			if (object.indexed)
+			{				
+				vkCmdBindIndexBuffer(cmd, object.mesh->_indexBuffer._buffer, 0, VK_INDEX_TYPE_UINT16);
+			}
 		}
-		//we can now draw
-		vkCmdDraw(cmd, object.mesh->_vertices.size(), 1,0 , i);
+
+		if (object.indexed)
+		{
+			vkCmdDrawIndexed(cmd, static_cast<uint32_t>(object.mesh->_indexes.size()), 1, 0, 0, i);
+		}
+		else {
+			//we can now draw
+			vkCmdDraw(cmd, object.mesh->_vertices.size(), 1, 0, i);
+		}
+		
 	}
 }
 
@@ -1081,11 +1193,11 @@ void VulkanEngine::init_scene()
 	RenderObject monkey;
 	monkey.mesh = get_mesh("monkey");
 	monkey.material = get_material("defaultmesh");
-	monkey.transformMatrix = glm::mat4{ 1.0f };
+	monkey.transformMatrix = glm::translate(glm::mat4{ 1.0 }, glm::vec3(0.0, 10.0, 0));
 
 	_renderables.push_back(monkey);
 
-	for (int x = -20; x <= 20; x++) {
+	/*for (int x = -20; x <= 20; x++) {
 		for (int y = -20; y <= 20; y++) {
 
 			RenderObject tri;
@@ -1097,7 +1209,17 @@ void VulkanEngine::init_scene()
 
 			_renderables.push_back(tri);
 		}
-	}
+	}*/
+
+	RenderObject quad;
+	quad.mesh = get_mesh("quad");
+	quad.material = get_material("defaultmesh");
+	glm::mat4 translation = glm::translate(glm::mat4{ 1.0 }, glm::vec3(0, 5.0, 0));
+	glm::mat4 scale = glm::scale(glm::mat4{ 1.0 }, glm::vec3(1.2, 1.2, 1.2));
+	quad.transformMatrix = translation * scale;
+	quad.indexed = true;
+
+	_renderables.push_back(quad);
 }
 
 AllocatedBuffer VulkanEngine::create_buffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage)

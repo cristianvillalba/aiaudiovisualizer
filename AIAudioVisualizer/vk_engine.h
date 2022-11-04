@@ -86,6 +86,8 @@ struct RenderObject {
 	Material* material;
 
 	glm::mat4 transformMatrix;
+
+	bool indexed = false;
 };
 
 
@@ -260,6 +262,8 @@ private:
 	void load_meshes();
 
 	void upload_mesh(Mesh& mesh);
+
+	void upload_meshPlus(Mesh& mesh);
 
 	void init_imgui();
 
