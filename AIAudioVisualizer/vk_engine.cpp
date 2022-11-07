@@ -684,6 +684,12 @@ void VulkanEngine::init_pipelines()
 		std::cout << "Error when building the mesh vertex shader module" << std::endl;
 	}
 
+	VkShaderModule texturedMeshShader;
+	if (!load_shader_module("shaders/audiovis.frag.spv", &texturedMeshShader))
+	{
+		std::cout << "Error when building the textured mesh shader" << std::endl;
+	}
+
 	
 	//build the stage-create-info for both vertex and fragment stages. This lets the pipeline know the shader modules per stage
 	PipelineBuilder pipelineBuilder;
@@ -717,6 +723,19 @@ void VulkanEngine::init_pipelines()
 
 	VkPipelineLayout meshPipLayout;
 	VK_CHECK(vkCreatePipelineLayout(_device, &mesh_pipeline_layout_info, nullptr, &meshPipLayout));
+
+	//--------------------------------------------texture pipeline--------------------------
+	//we start from  the normal mesh layout
+	VkPipelineLayoutCreateInfo textured_pipeline_layout_info = mesh_pipeline_layout_info;
+
+	VkDescriptorSetLayout texturedSetLayouts[] = { _globalSetLayout, _objectSetLayout };
+
+	textured_pipeline_layout_info.setLayoutCount = 2;
+	textured_pipeline_layout_info.pSetLayouts = texturedSetLayouts;
+
+	VkPipelineLayout texturedPipeLayout;
+	VK_CHECK(vkCreatePipelineLayout(_device, &textured_pipeline_layout_info, nullptr, &texturedPipeLayout));
+	//--------------------------------------------texture pipeline--------------------------
 
 	//hook the push constants layout
 	pipelineBuilder._pipelineLayout = meshPipLayout;
@@ -769,13 +788,30 @@ void VulkanEngine::init_pipelines()
 
 	create_material(meshPipeline, meshPipLayout, "defaultmesh");
 
+	//-----------------------------------generate a new pipeline, this time with vert + texture---------------------
+	//create pipeline for textured drawing
+	pipelineBuilder._shaderStages.clear();
+	pipelineBuilder._shaderStages.push_back(
+		vkinit::pipeline_shader_stage_create_info(VK_SHADER_STAGE_VERTEX_BIT, meshVertShader));
+
+	pipelineBuilder._shaderStages.push_back(
+		vkinit::pipeline_shader_stage_create_info(VK_SHADER_STAGE_FRAGMENT_BIT, texturedMeshShader));
+
+	pipelineBuilder._pipelineLayout = texturedPipeLayout;
+	VkPipeline texPipeline = pipelineBuilder.build_pipeline(_device, _renderPass);
+	create_material(texPipeline, texturedPipeLayout, "texturedmesh");
+
+
 	vkDestroyShaderModule(_device, meshVertShader, nullptr);
 	vkDestroyShaderModule(_device, colorMeshShader, nullptr);
+	vkDestroyShaderModule(_device, texturedMeshShader, nullptr);
 
 	_mainDeletionQueue.push_function([=]() {
 		vkDestroyPipeline(_device, meshPipeline, nullptr);
+		vkDestroyPipeline(_device, texPipeline, nullptr);
 
 		vkDestroyPipelineLayout(_device, meshPipLayout, nullptr);
+		vkDestroyPipelineLayout(_device, texturedPipeLayout, nullptr);
 	});
 }
 
@@ -917,7 +953,13 @@ void VulkanEngine::load_meshes()
 	quadMesh._vertices[1].color = { 0.f,1.f, 0.0f }; //pure green
 	quadMesh._vertices[2].color = { 0.f,1.f, 0.0f }; //pure green
 	quadMesh._vertices[3].color = { 0.f,1.f, 0.0f }; //pure green
-	//we dont care about the vertex normals
+	
+	//texture coordinates
+	quadMesh._vertices[0].uv = { 1.f,1.f};
+	quadMesh._vertices[1].uv = { 1.f,1.f};
+	quadMesh._vertices[2].uv = { 1.f,1.f};
+	quadMesh._vertices[3].uv = { 1.f,0.f};
+
 
 	//load the monkey
 	Mesh monkeyMesh{};
@@ -1213,7 +1255,7 @@ void VulkanEngine::init_scene()
 
 	RenderObject quad;
 	quad.mesh = get_mesh("quad");
-	quad.material = get_material("defaultmesh");
+	quad.material = get_material("texturedmesh");
 	glm::mat4 translation = glm::translate(glm::mat4{ 1.0 }, glm::vec3(0, 5.0, 0));
 	glm::mat4 scale = glm::scale(glm::mat4{ 1.0 }, glm::vec3(1.2, 1.2, 1.2));
 	quad.transformMatrix = translation * scale;
