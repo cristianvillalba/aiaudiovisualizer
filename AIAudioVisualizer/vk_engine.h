@@ -76,6 +76,7 @@ struct MeshPushConstants {
 
 
 struct Material {
+	VkDescriptorSet textureSet{ VK_NULL_HANDLE }; //texture defaulted to null
 	VkPipeline pipeline;
 	VkPipelineLayout pipelineLayout;
 };
@@ -164,6 +165,7 @@ public:
 	uint32_t _graphicsQueueFamily;
 	
 	VkRenderPass _renderPass;
+	VkRenderPass _offscreenRenderPass;
 
 	VkSurfaceKHR _surface;
 	VkSwapchainKHR _swapchain;
@@ -171,7 +173,15 @@ public:
 
 	std::vector<VkFramebuffer> _framebuffers;
 	std::vector<VkImage> _swapchainImages;
-	std::vector<VkImageView> _swapchainImageViews;	
+	std::vector<VkImageView> _swapchainImageViews;
+
+	//offscreen texture image
+	VkImageView _offtextureImageView;
+	AllocatedImage _offtextureImage;
+	VkFramebuffer _offframebuffer;
+	VkImageView _offdepthImageView;
+	AllocatedImage _offdepthImage;
+
 
     DeletionQueue _mainDeletionQueue;
 	
@@ -194,6 +204,8 @@ public:
 
 	UploadContext _uploadContext;
 
+	VkDescriptorSetLayout _singleTextureSetLayout;
+
 	//initializes everything in the engine
 	void init();
 
@@ -212,6 +224,8 @@ public:
 	//default array of renderable objects
 	std::vector<RenderObject> _renderables;
 
+	RenderObject * quadMain;
+
 	std::unordered_map<std::string, Material> _materials;
 	std::unordered_map<std::string, Mesh> _meshes;
 	//functions
@@ -228,6 +242,8 @@ public:
 	//our draw function
 	void draw_objects(VkCommandBuffer cmd, RenderObject* first, int count);
 
+	void draw_quad(VkCommandBuffer cmd);
+
 	AllocatedBuffer create_buffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage);
 
 	size_t pad_uniform_buffer_size(size_t originalSize);
@@ -242,7 +258,11 @@ private:
 
 	void init_swapchain();
 
+	void init_offtexture();
+
 	void init_default_renderpass();
+
+	void init_offscreen_renderpass();
 
 	void init_framebuffers();
 

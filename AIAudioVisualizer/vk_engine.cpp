@@ -140,7 +140,11 @@ void VulkanEngine::init()
 
 	init_swapchain();
 
+	init_offtexture();
+
 	init_default_renderpass();
+
+	init_offscreen_renderpass();
 
 	init_framebuffers();
 
@@ -171,6 +175,8 @@ void VulkanEngine::cleanup()
 		vkDeviceWaitIdle(_device);
 
 		_mainDeletionQueue.flush();
+
+		delete quadMain;
 
 		vkDestroySurfaceKHR(_instance, _surface, nullptr);
 
@@ -233,6 +239,36 @@ void VulkanEngine::draw()
 
 	VK_CHECK(vkBeginCommandBuffer(cmd, &cmdBeginInfo));
 
+	//-------------------First render pass------------------------------
+	//make a clear-color from frame number. This will flash with a 120 frame period.
+	VkClearValue clearValueOff;
+	clearValueOff.color = { { 0.0f, 0.0f, 1.0f, 1.0f } };
+
+	//clear depth at 1
+	VkClearValue depthClearOff;
+	depthClearOff.depthStencil.depth = 1.f;
+
+	//start the main renderpass. 
+	//We will use the clear color from above, and the framebuffer of the index the swapchain gave us
+	VkRenderPassBeginInfo rpInfoOff = vkinit::renderpass_begin_info(_offscreenRenderPass, _windowExtent, _offframebuffer);
+
+	//connect clear values
+	rpInfoOff.clearValueCount = 2;
+
+	VkClearValue clearValuesOff[] = { clearValueOff, depthClearOff };
+
+	rpInfoOff.pClearValues = &clearValuesOff[0];
+
+	vkCmdBeginRenderPass(cmd, &rpInfoOff, VK_SUBPASS_CONTENTS_INLINE);
+
+	draw_quad(cmd);
+
+	//finalize the render pass
+	vkCmdEndRenderPass(cmd);
+	//-------------------First render pass------------------------------
+
+
+	//-------------------Final render pass------------------------------
 	//make a clear-color from frame number. This will flash with a 120 frame period.
 	VkClearValue clearValue;
 	float flash = abs(sin(_frameNumber / 120.f));
@@ -262,6 +298,8 @@ void VulkanEngine::draw()
 
 	//finalize the render pass
 	vkCmdEndRenderPass(cmd);
+	//-------------------Final render pass------------------------------
+
 	//finalize the command buffer (we can no longer add commands, but it can now be executed)
 	VK_CHECK(vkEndCommandBuffer(cmd));
 
@@ -481,6 +519,67 @@ void VulkanEngine::init_swapchain()
 	});
 }
 
+void VulkanEngine::init_offtexture()
+{
+	//depth image size will match the window
+	VkExtent3D depthImageExtent = {
+		_windowExtent.width,
+		_windowExtent.height,
+		1
+	};
+
+	//hardcoding the depth format to 32 bit float
+	_depthFormat = VK_FORMAT_R8G8B8A8_UNORM;
+
+	//the depth image will be a image with the format we selected and Depth Attachment usage flag
+	VkImageCreateInfo dimg_info = vkinit::image_create_info(_depthFormat, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, depthImageExtent);
+
+	//for the depth image, we want to allocate it from gpu local memory
+	VmaAllocationCreateInfo dimg_allocinfo = {};
+	dimg_allocinfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+	dimg_allocinfo.requiredFlags = VkMemoryPropertyFlags(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+	//allocate and create the image
+	vmaCreateImage(_allocator, &dimg_info, &dimg_allocinfo, &_offtextureImage._image, &_offtextureImage._allocation, nullptr);
+
+	//build a image-view for the depth image to use for rendering
+	VkImageViewCreateInfo dview_info = vkinit::imageview_create_info(_depthFormat, _offtextureImage._image, VK_IMAGE_ASPECT_COLOR_BIT);
+
+	VK_CHECK(vkCreateImageView(_device, &dview_info, nullptr, &_offtextureImageView));
+
+	//add to deletion queues
+	_mainDeletionQueue.push_function([=]() {
+		vkDestroyImageView(_device, _offtextureImageView, nullptr);
+		vmaDestroyImage(_allocator, _offtextureImage._image, _offtextureImage._allocation);
+	});
+
+	//------------------------depth buffer------------------------------------
+	//hardcoding the depth format to 32 bit float
+	_depthFormat = VK_FORMAT_D32_SFLOAT;
+
+	//the depth image will be a image with the format we selected and Depth Attachment usage flag
+	VkImageCreateInfo dimg_infodep = vkinit::image_create_info(_depthFormat, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, depthImageExtent);
+
+	//for the depth image, we want to allocate it from gpu local memory
+	VmaAllocationCreateInfo dimg_allocinfodep = {};
+	dimg_allocinfodep.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+	dimg_allocinfodep.requiredFlags = VkMemoryPropertyFlags(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+	//allocate and create the image
+	vmaCreateImage(_allocator, &dimg_infodep, &dimg_allocinfodep, &_offdepthImage._image, &_offdepthImage._allocation, nullptr);
+
+	//build a image-view for the depth image to use for rendering
+	VkImageViewCreateInfo dview_infodep = vkinit::imageview_create_info(_depthFormat, _offdepthImage._image, VK_IMAGE_ASPECT_DEPTH_BIT);;
+
+	VK_CHECK(vkCreateImageView(_device, &dview_infodep, nullptr, &_offdepthImageView));
+
+	//add to deletion queues
+	_mainDeletionQueue.push_function([=]() {
+		vkDestroyImageView(_device, _offdepthImageView, nullptr);
+		vmaDestroyImage(_allocator, _offdepthImage._image, _offdepthImage._allocation);
+	});
+}
+
 void VulkanEngine::init_default_renderpass()
 {
 	//we define an attachment description for our main color image
@@ -569,6 +668,94 @@ void VulkanEngine::init_default_renderpass()
 	});
 }
 
+void VulkanEngine::init_offscreen_renderpass()
+{
+	//we define an attachment description for our main color image
+	//the attachment is loaded as "clear" when renderpass start
+	//the attachment is stored when renderpass ends
+	//the attachment layout starts as "undefined", and transitions to "Present" so its possible to display it
+	//we dont care about stencil, and dont use multisampling
+
+	VkAttachmentDescription color_attachment = {};
+	color_attachment.format = _swachainImageFormat;
+	color_attachment.samples = VK_SAMPLE_COUNT_1_BIT;
+	color_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+	color_attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+	color_attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+	color_attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	color_attachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	color_attachment.finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+	VkAttachmentReference color_attachment_ref = {};
+	color_attachment_ref.attachment = 0;
+	color_attachment_ref.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+	VkAttachmentDescription depth_attachment = {};
+	// Depth attachment
+	depth_attachment.flags = 0;
+	depth_attachment.format = _depthFormat;
+	depth_attachment.samples = VK_SAMPLE_COUNT_1_BIT;
+	depth_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+	depth_attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+	depth_attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+	depth_attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	depth_attachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	depth_attachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+	VkAttachmentReference depth_attachment_ref = {};
+	depth_attachment_ref.attachment = 1;
+	depth_attachment_ref.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+	//we are going to create 1 subpass, which is the minimum you can do
+	VkSubpassDescription subpass = {};
+	subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+	subpass.colorAttachmentCount = 1;
+	subpass.pColorAttachments = &color_attachment_ref;
+	//hook the depth attachment into the subpass
+	subpass.pDepthStencilAttachment = &depth_attachment_ref;
+
+	//1 dependency, which is from "outside" into the subpass. And we can read or write color
+	VkSubpassDependency dependency = {};
+	dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+	dependency.dstSubpass = 0;
+	dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+	dependency.srcAccessMask = 0;
+	dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+	dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+
+	//dependency from outside to the subpass, making this subpass dependent on the previous renderpasses
+	VkSubpassDependency depth_dependency = {};
+	depth_dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+	depth_dependency.dstSubpass = 0;
+	depth_dependency.srcStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+	depth_dependency.srcAccessMask = 0;
+	depth_dependency.dstStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+	depth_dependency.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+
+	//array of 2 dependencies, one for color, two for depth
+	VkSubpassDependency dependencies[2] = { dependency, depth_dependency };
+
+	//array of 2 attachments, one for the color, and other for depth
+	VkAttachmentDescription attachments[2] = { color_attachment,depth_attachment };
+
+	VkRenderPassCreateInfo render_pass_info = {};
+	render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+	//2 attachments from attachment array
+	render_pass_info.attachmentCount = 2;
+	render_pass_info.pAttachments = &attachments[0];
+	render_pass_info.subpassCount = 1;
+	render_pass_info.pSubpasses = &subpass;
+	//2 dependencies from dependency array
+	render_pass_info.dependencyCount = 2;
+	render_pass_info.pDependencies = &dependencies[0];
+
+	VK_CHECK(vkCreateRenderPass(_device, &render_pass_info, nullptr, &_offscreenRenderPass));
+
+	_mainDeletionQueue.push_function([=]() {
+		vkDestroyRenderPass(_device, _offscreenRenderPass, nullptr);
+	});
+}
+
 void VulkanEngine::init_framebuffers()
 {
 	//create the framebuffers for the swapchain images. This will connect the render-pass to the images for rendering
@@ -592,6 +779,23 @@ void VulkanEngine::init_framebuffers()
 			vkDestroyImageView(_device, _swapchainImageViews[i], nullptr);
 		});
 	}
+
+	//----------------generate another framebuffer that connects the offscreen image with the offscreenrenderpass
+	VkFramebufferCreateInfo fb_infooff = vkinit::framebuffer_create_info(_offscreenRenderPass, _windowExtent);
+
+	VkImageView attachments[2];
+	attachments[0] = _offtextureImageView;
+	attachments[1] = _offdepthImageView;
+
+	fb_infooff.pAttachments = attachments;
+	fb_infooff.attachmentCount = 2;
+	VK_CHECK(vkCreateFramebuffer(_device, &fb_infooff, nullptr, &_offframebuffer));
+
+	_mainDeletionQueue.push_function([=]() {
+		vkDestroyFramebuffer(_device, _offframebuffer, nullptr);
+		vkDestroyImageView(_device, _offtextureImageView, nullptr);
+	});
+
 }
 
 void VulkanEngine::init_commands()
@@ -728,9 +932,9 @@ void VulkanEngine::init_pipelines()
 	//we start from  the normal mesh layout
 	VkPipelineLayoutCreateInfo textured_pipeline_layout_info = mesh_pipeline_layout_info;
 
-	VkDescriptorSetLayout texturedSetLayouts[] = { _globalSetLayout, _objectSetLayout };
+	VkDescriptorSetLayout texturedSetLayouts[] = { _globalSetLayout, _objectSetLayout, _singleTextureSetLayout };
 
-	textured_pipeline_layout_info.setLayoutCount = 2;
+	textured_pipeline_layout_info.setLayoutCount = 3;
 	textured_pipeline_layout_info.pSetLayouts = texturedSetLayouts;
 
 	VkPipelineLayout texturedPipeLayout;
@@ -956,8 +1160,8 @@ void VulkanEngine::load_meshes()
 	
 	//texture coordinates
 	quadMesh._vertices[0].uv = { 1.f,1.f};
-	quadMesh._vertices[1].uv = { 1.f,1.f};
-	quadMesh._vertices[2].uv = { 1.f,1.f};
+	quadMesh._vertices[1].uv = { 0.f,1.f};
+	quadMesh._vertices[2].uv = { 0.f,0.f};
 	quadMesh._vertices[3].uv = { 1.f,0.f};
 
 
@@ -1120,6 +1324,113 @@ Mesh* VulkanEngine::get_mesh(const std::string& name)
 	}
 }
 
+void VulkanEngine::draw_quad(VkCommandBuffer cmd)
+{
+	//make a model view matrix for rendering the object
+	//camera view
+	glm::vec3 camPos = { 0.f,-6.f,-10.f };
+
+	glm::mat4 view = glm::translate(glm::mat4(1.f), camPos);
+	//camera projection
+	glm::mat4 projection = glm::perspective(glm::radians(70.f), 1700.f / 900.f, 0.1f, 200.0f);
+	projection[1][1] *= -1;
+
+	GPUCameraData camData;
+	camData.proj = projection;
+	camData.view = view;
+	camData.viewproj = projection * view;
+
+	void* data;
+	vmaMapMemory(_allocator, get_current_frame().cameraBuffer._allocation, &data);
+
+	memcpy(data, &camData, sizeof(GPUCameraData));
+
+	vmaUnmapMemory(_allocator, get_current_frame().cameraBuffer._allocation);
+
+	float framed = (_frameNumber / 120.f);
+
+	_sceneParameters.ambientColor = { sin(framed),0,cos(framed),1 };
+
+	char* sceneData;
+	vmaMapMemory(_allocator, _sceneParameterBuffer._allocation, (void**)&sceneData);
+
+	int frameIndex = _frameNumber % FRAME_OVERLAP;
+
+	sceneData += pad_uniform_buffer_size(sizeof(GPUSceneData)) * frameIndex;
+
+	memcpy(sceneData, &_sceneParameters, sizeof(GPUSceneData));
+
+	vmaUnmapMemory(_allocator, _sceneParameterBuffer._allocation);
+
+
+	void* objectData;
+	vmaMapMemory(_allocator, get_current_frame().objectBuffer._allocation, &objectData);
+
+	GPUObjectData* objectSSBO = (GPUObjectData*)objectData;
+
+	objectSSBO[0].modelMatrix = quadMain->transformMatrix;
+
+	vmaUnmapMemory(_allocator, get_current_frame().objectBuffer._allocation);
+
+	Mesh* lastMesh = nullptr;
+	Material* lastMaterial = nullptr;
+
+
+	RenderObject& object = *quadMain;
+
+	//only bind the pipeline if it doesnt match with the already bound one
+	if (object.material != lastMaterial) {
+
+		vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, object.material->pipeline);
+		lastMaterial = object.material;
+
+		uint32_t uniform_offset = pad_uniform_buffer_size(sizeof(GPUSceneData)) * frameIndex;
+		vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, object.material->pipelineLayout, 0, 1, &get_current_frame().globalDescriptor, 1, &uniform_offset);
+
+		//object data descriptor
+		vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, object.material->pipelineLayout, 1, 1, &get_current_frame().objectDescriptor, 0, nullptr);
+
+		if (object.material->textureSet != VK_NULL_HANDLE) {
+			//texture descriptor
+			vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, object.material->pipelineLayout, 2, 1, &object.material->textureSet, 0, nullptr);
+
+		}
+	}
+
+	glm::mat4 model = object.transformMatrix;
+	//final render matrix, that we are calculating on the cpu
+	glm::mat4 mesh_matrix = model;
+
+	MeshPushConstants constants;
+	constants.render_matrix = mesh_matrix;
+
+	//upload the mesh to the gpu via pushconstants
+	vkCmdPushConstants(cmd, object.material->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(MeshPushConstants), &constants);
+
+	//only bind the mesh if its a different one from last bind
+	if (object.mesh != lastMesh) {
+		//bind the mesh vertex buffer with offset 0
+		VkDeviceSize offset = 0;
+		vkCmdBindVertexBuffers(cmd, 0, 1, &object.mesh->_vertexBuffer._buffer, &offset);
+		lastMesh = object.mesh;
+
+		if (object.indexed)
+		{
+			vkCmdBindIndexBuffer(cmd, object.mesh->_indexBuffer._buffer, 0, VK_INDEX_TYPE_UINT16);
+		}
+	}
+
+	if (object.indexed)
+	{
+		vkCmdDrawIndexed(cmd, static_cast<uint32_t>(object.mesh->_indexes.size()), 1, 0, 0, 1);
+	}
+	else {
+		//we can now draw
+		vkCmdDraw(cmd, object.mesh->_vertices.size(), 1, 0, 1);
+	}
+
+}
+
 
 void VulkanEngine::draw_objects(VkCommandBuffer cmd,RenderObject* first, int count)
 {
@@ -1191,6 +1502,12 @@ void VulkanEngine::draw_objects(VkCommandBuffer cmd,RenderObject* first, int cou
 		
 			//object data descriptor
 			vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, object.material->pipelineLayout, 1, 1, &get_current_frame().objectDescriptor, 0, nullptr);
+
+			if (object.material->textureSet != VK_NULL_HANDLE) {
+				//texture descriptor
+				vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, object.material->pipelineLayout, 2, 1, &object.material->textureSet, 0, nullptr);
+
+			}
 		}
 
 		glm::mat4 model = object.transformMatrix;
@@ -1253,15 +1570,53 @@ void VulkanEngine::init_scene()
 		}
 	}*/
 
+
+	//create a sampler for the texture
+	VkSamplerCreateInfo samplerInfo = vkinit::sampler_create_info(VK_FILTER_NEAREST);
+
+	VkSampler blockySampler;
+	vkCreateSampler(_device, &samplerInfo, nullptr, &blockySampler);
+
+	Material* texturedMat = get_material("texturedmesh");
+
+	//allocate the descriptor set for single-texture to use on the material
+	VkDescriptorSetAllocateInfo allocInfo = {};
+	allocInfo.pNext = nullptr;
+	allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+	allocInfo.descriptorPool = _descriptorPool;
+	allocInfo.descriptorSetCount = 1;
+	allocInfo.pSetLayouts = &_singleTextureSetLayout;
+
+	vkAllocateDescriptorSets(_device, &allocInfo, &texturedMat->textureSet);
+
+	//write to the descriptor set so that it points to our empire_diffuse texture
+	VkDescriptorImageInfo imageBufferInfo;
+	imageBufferInfo.sampler = blockySampler;
+	//imageBufferInfo.imageView = _loadedTextures["empire_diffuse"].imageView;
+	imageBufferInfo.imageView = _offtextureImageView;
+	imageBufferInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+	VkWriteDescriptorSet texture1 = vkinit::write_descriptor_image(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, texturedMat->textureSet, &imageBufferInfo, 0);
+
+	vkUpdateDescriptorSets(_device, 1, &texture1, 0, nullptr);
+
 	RenderObject quad;
 	quad.mesh = get_mesh("quad");
 	quad.material = get_material("texturedmesh");
 	glm::mat4 translation = glm::translate(glm::mat4{ 1.0 }, glm::vec3(0, 5.0, 0));
-	glm::mat4 scale = glm::scale(glm::mat4{ 1.0 }, glm::vec3(1.2, 1.2, 1.2));
+	glm::mat4 scale = glm::scale(glm::mat4{ 1.0 }, glm::vec3(10.0, 2.0, 1.0));
 	quad.transformMatrix = translation * scale;
 	quad.indexed = true;
 
 	_renderables.push_back(quad);
+
+	quadMain = new RenderObject();
+	quadMain->mesh = get_mesh("quad");
+	quadMain->material = get_material("defaultmesh");
+	glm::mat4 translationq = glm::translate(glm::mat4{ 1.0 }, glm::vec3(0, 10.0, 0));
+	glm::mat4 scaleq = glm::scale(glm::mat4{ 1.0 }, glm::vec3(10.0, 2.0, 1.0));
+	quadMain->transformMatrix = translationq * scaleq;
+	quadMain->indexed = true;
 }
 
 AllocatedBuffer VulkanEngine::create_buffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage)
@@ -1310,7 +1665,9 @@ void VulkanEngine::init_descriptors()
 	{
 		{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 10 },
 		{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 10 },
-		{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 10 }
+		{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 10 },
+		//add combined-image-sampler descriptor types to the pool
+		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 10 }
 	};
 
 	VkDescriptorPoolCreateInfo pool_info = {};
@@ -1423,6 +1780,19 @@ void VulkanEngine::init_descriptors()
 			vmaDestroyBuffer(_allocator, _frames[i].objectBuffer._buffer, _frames[i].objectBuffer._allocation);
 		}
 	});
+
+
+	//another set, one that holds a single texture
+	VkDescriptorSetLayoutBinding textureBind = vkinit::descriptorset_layout_binding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 0);
+
+	VkDescriptorSetLayoutCreateInfo set3info = {};
+	set3info.bindingCount = 1;
+	set3info.flags = 0;
+	set3info.pNext = nullptr;
+	set3info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+	set3info.pBindings = &textureBind;
+
+	vkCreateDescriptorSetLayout(_device, &set3info, nullptr, &_singleTextureSetLayout);
 }
 
 void VulkanEngine::immediate_submit(std::function<void(VkCommandBuffer cmd)>&& function)
