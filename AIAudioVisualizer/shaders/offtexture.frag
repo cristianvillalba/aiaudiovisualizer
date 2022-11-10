@@ -4,7 +4,7 @@
 //shader input
 layout (location = 0) in vec3 inColor;
 layout (location = 1) in vec2 texCoord;
-//layout (location = 2) in vec3 fragCoord;
+layout (location = 2) in vec3 fragCoord;
 
 //output write
 layout (location = 0) out vec4 outFragColor;
@@ -17,22 +17,19 @@ layout(set = 0, binding = 1) uniform  SceneData{
 	vec4 sunlightColor;
 } sceneData;
 
-layout(set = 2, binding = 0) uniform sampler2D tex1;
 
 void main() 
 {	
 	//outFragColor = vec4(inColor + sceneData.ambientColor.xyz,1.0f);
-	//outFragColor = vec4(texCoord.x,texCoord.y,0.5f,1.0f);
-	vec3 color = texture(tex1,texCoord).xyz;
-	outFragColor = vec4(color,1.0f);
+	//vec3 color = texture(tex1,texCoord).xyz;
 
-	//float dist = distance(fragCoord.xy, vec2(0.5f));
+	float dis = distance(fragCoord.xy, vec2(0.5f));
 
-	//if (dist < 0.1){
-	//	outFragColor = vec4(1.0f,0.0f,0.0f,1.0f);
-	//}
-	//else
-	//{
-	//	outFragColor = vec4(1.0f,1.0f,0.0f,1.0f);
-	//}
+	if (dis < 0.5){
+		outFragColor = vec4(0.5f,0.5f,0.5f,1.0f);
+	}
+	else
+	{
+		outFragColor = vec4(1.0f,1.0f,0.0f,1.0f);
+	}
 }

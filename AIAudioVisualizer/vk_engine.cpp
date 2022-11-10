@@ -529,7 +529,7 @@ void VulkanEngine::init_offtexture()
 	};
 
 	//hardcoding the depth format to 32 bit float
-	_depthFormat = VK_FORMAT_R8G8B8A8_UNORM;
+	_depthFormat = VK_FORMAT_B8G8R8A8_SRGB;
 
 	//the depth image will be a image with the format we selected and Depth Attachment usage flag
 	VkImageCreateInfo dimg_info = vkinit::image_create_info(_depthFormat, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, depthImageExtent);
@@ -894,6 +894,12 @@ void VulkanEngine::init_pipelines()
 		std::cout << "Error when building the textured mesh shader" << std::endl;
 	}
 
+	VkShaderModule offMeshShader;
+	if (!load_shader_module("shaders/offtexture.frag.spv", &offMeshShader))
+	{
+		std::cout << "Error when building the offtexture mesh shader" << std::endl;
+	}
+
 	
 	//build the stage-create-info for both vertex and fragment stages. This lets the pipeline know the shader modules per stage
 	PipelineBuilder pipelineBuilder;
@@ -940,6 +946,21 @@ void VulkanEngine::init_pipelines()
 	VkPipelineLayout texturedPipeLayout;
 	VK_CHECK(vkCreatePipelineLayout(_device, &textured_pipeline_layout_info, nullptr, &texturedPipeLayout));
 	//--------------------------------------------texture pipeline--------------------------
+
+	//--------------------------------------------offtexture pipeline--------------------------
+	//we start from  the normal mesh layout
+	VkPipelineLayoutCreateInfo offtexture_pipeline_layout_info = mesh_pipeline_layout_info;
+
+	VkDescriptorSetLayout offtextSetLayouts[] = { _globalSetLayout, _objectSetLayout, _singleTextureSetLayout };
+
+	offtexture_pipeline_layout_info.setLayoutCount = 3;
+	offtexture_pipeline_layout_info.pSetLayouts = offtextSetLayouts;
+
+	VkPipelineLayout offtextPipeLayout;
+	VK_CHECK(vkCreatePipelineLayout(_device, &offtexture_pipeline_layout_info, nullptr, &offtextPipeLayout));
+	//--------------------------------------------offtexture pipeline--------------------------
+
+
 
 	//hook the push constants layout
 	pipelineBuilder._pipelineLayout = meshPipLayout;
@@ -1004,18 +1025,36 @@ void VulkanEngine::init_pipelines()
 	pipelineBuilder._pipelineLayout = texturedPipeLayout;
 	VkPipeline texPipeline = pipelineBuilder.build_pipeline(_device, _renderPass);
 	create_material(texPipeline, texturedPipeLayout, "texturedmesh");
+	//-----------------------------------generate a new pipeline, this time with vert + texture---------------------
+
+	//-----------------------------------vert + texture pipeline---------------------
+	//create pipeline for textured drawing
+	pipelineBuilder._shaderStages.clear();
+	pipelineBuilder._shaderStages.push_back(
+		vkinit::pipeline_shader_stage_create_info(VK_SHADER_STAGE_VERTEX_BIT, meshVertShader));
+
+	pipelineBuilder._shaderStages.push_back(
+		vkinit::pipeline_shader_stage_create_info(VK_SHADER_STAGE_FRAGMENT_BIT, offMeshShader));
+
+	pipelineBuilder._pipelineLayout = offtextPipeLayout;
+	VkPipeline offtexPipeline = pipelineBuilder.build_pipeline(_device, _offscreenRenderPass);
+	create_material(offtexPipeline, offtextPipeLayout, "offshader");
+	//-----------------------------------vert + texture pipeline---------------------
 
 
 	vkDestroyShaderModule(_device, meshVertShader, nullptr);
 	vkDestroyShaderModule(_device, colorMeshShader, nullptr);
 	vkDestroyShaderModule(_device, texturedMeshShader, nullptr);
+	vkDestroyShaderModule(_device, offMeshShader, nullptr);
 
 	_mainDeletionQueue.push_function([=]() {
 		vkDestroyPipeline(_device, meshPipeline, nullptr);
 		vkDestroyPipeline(_device, texPipeline, nullptr);
+		vkDestroyPipeline(_device, offtexPipeline, nullptr);
 
 		vkDestroyPipelineLayout(_device, meshPipLayout, nullptr);
 		vkDestroyPipelineLayout(_device, texturedPipeLayout, nullptr);
+		vkDestroyPipelineLayout(_device, offtextPipeLayout, nullptr);
 	});
 }
 
@@ -1602,7 +1641,7 @@ void VulkanEngine::init_scene()
 
 	RenderObject quad;
 	quad.mesh = get_mesh("quad");
-	quad.material = get_material("texturedmesh");
+	quad.material = get_material("texturedmesh");//texturedmesh //defaultmesh
 	glm::mat4 translation = glm::translate(glm::mat4{ 1.0 }, glm::vec3(0, 5.0, 0));
 	glm::mat4 scale = glm::scale(glm::mat4{ 1.0 }, glm::vec3(10.0, 2.0, 1.0));
 	quad.transformMatrix = translation * scale;
@@ -1612,7 +1651,7 @@ void VulkanEngine::init_scene()
 
 	quadMain = new RenderObject();
 	quadMain->mesh = get_mesh("quad");
-	quadMain->material = get_material("defaultmesh");
+	quadMain->material = get_material("offshader");
 	glm::mat4 translationq = glm::translate(glm::mat4{ 1.0 }, glm::vec3(0, 10.0, 0));
 	glm::mat4 scaleq = glm::scale(glm::mat4{ 1.0 }, glm::vec3(10.0, 2.0, 1.0));
 	quadMain->transformMatrix = translationq * scaleq;
