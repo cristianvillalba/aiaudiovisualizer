@@ -176,8 +176,6 @@ void VulkanEngine::cleanup()
 
 		_mainDeletionQueue.flush();
 
-		delete quadMain;
-
 		vkDestroySurfaceKHR(_instance, _surface, nullptr);
 
 		vkDestroyDevice(_device, nullptr);
@@ -391,7 +389,8 @@ void VulkanEngine::run()
 
 FrameData& VulkanEngine::get_current_frame()
 {
-	return _frames[_frameNumber % FRAME_OVERLAP];
+	//return _frames[_frameNumber % FRAME_OVERLAP];
+	return _frames[_frameNumber % 2];
 }
 
 
@@ -688,7 +687,8 @@ void VulkanEngine::init_offscreen_renderpass()
 
 	VkAttachmentReference color_attachment_ref = {};
 	color_attachment_ref.attachment = 0;
-	color_attachment_ref.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+	//color_attachment_ref.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+	color_attachment_ref.layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
 	VkAttachmentDescription depth_attachment = {};
 	// Depth attachment
@@ -1380,11 +1380,11 @@ void VulkanEngine::draw_quad(VkCommandBuffer cmd)
 	camData.viewproj = projection * view;
 
 	void* data;
-	vmaMapMemory(_allocator, get_current_frame().cameraBuffer._allocation, &data);
+	vmaMapMemory(_allocator, _frames[2].cameraBuffer._allocation, &data);
 
 	memcpy(data, &camData, sizeof(GPUCameraData));
 
-	vmaUnmapMemory(_allocator, get_current_frame().cameraBuffer._allocation);
+	vmaUnmapMemory(_allocator, _frames[2].cameraBuffer._allocation);
 
 	float framed = (_frameNumber / 120.f);
 
@@ -1393,7 +1393,8 @@ void VulkanEngine::draw_quad(VkCommandBuffer cmd)
 	char* sceneData;
 	vmaMapMemory(_allocator, _sceneParameterBuffer._allocation, (void**)&sceneData);
 
-	int frameIndex = _frameNumber % FRAME_OVERLAP;
+	//int frameIndex = _frameNumber % FRAME_OVERLAP;
+	int frameIndex = 2;
 
 	sceneData += pad_uniform_buffer_size(sizeof(GPUSceneData)) * frameIndex;
 
@@ -1403,19 +1404,19 @@ void VulkanEngine::draw_quad(VkCommandBuffer cmd)
 
 
 	void* objectData;
-	vmaMapMemory(_allocator, get_current_frame().objectBuffer._allocation, &objectData);
+	vmaMapMemory(_allocator, _frames[2].objectBuffer._allocation, &objectData);
 
 	GPUObjectData* objectSSBO = (GPUObjectData*)objectData;
 
-	objectSSBO[0].modelMatrix = quadMain->transformMatrix;
+	objectSSBO[0].modelMatrix = _renderablesoffset[0].transformMatrix;
 
-	vmaUnmapMemory(_allocator, get_current_frame().objectBuffer._allocation);
+	vmaUnmapMemory(_allocator, _frames[2].objectBuffer._allocation);
 
 	Mesh* lastMesh = nullptr;
 	Material* lastMaterial = nullptr;
 
 
-	RenderObject& object = *quadMain;
+	RenderObject& object = _renderablesoffset[0];
 
 	//only bind the pipeline if it doesnt match with the already bound one
 	if (object.material != lastMaterial) {
@@ -1424,10 +1425,10 @@ void VulkanEngine::draw_quad(VkCommandBuffer cmd)
 		lastMaterial = object.material;
 
 		uint32_t uniform_offset = pad_uniform_buffer_size(sizeof(GPUSceneData)) * frameIndex;
-		vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, object.material->pipelineLayout, 0, 1, &get_current_frame().globalDescriptor, 1, &uniform_offset);
+		vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, object.material->pipelineLayout, 0, 1, &_frames[2].globalDescriptor, 1, &uniform_offset);
 
 		//object data descriptor
-		vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, object.material->pipelineLayout, 1, 1, &get_current_frame().objectDescriptor, 0, nullptr);
+		vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, object.material->pipelineLayout, 1, 1, &_frames[2].objectDescriptor, 0, nullptr);
 
 		if (object.material->textureSet != VK_NULL_HANDLE) {
 			//texture descriptor
@@ -1461,11 +1462,8 @@ void VulkanEngine::draw_quad(VkCommandBuffer cmd)
 
 	if (object.indexed)
 	{
-		vkCmdDrawIndexed(cmd, static_cast<uint32_t>(object.mesh->_indexes.size()), 1, 0, 0, 1);
-	}
-	else {
-		//we can now draw
-		vkCmdDraw(cmd, object.mesh->_vertices.size(), 1, 0, 1);
+
+		vkCmdDrawIndexed(cmd, static_cast<uint32_t>(object.mesh->_indexes.size()), 1, 0, 0, 0);
 	}
 
 }
@@ -1501,7 +1499,8 @@ void VulkanEngine::draw_objects(VkCommandBuffer cmd,RenderObject* first, int cou
 	char* sceneData;
 	vmaMapMemory(_allocator, _sceneParameterBuffer._allocation , (void**)&sceneData);
 
-	int frameIndex = _frameNumber % FRAME_OVERLAP;
+	//int frameIndex = _frameNumber % FRAME_OVERLAP;
+	int frameIndex = _frameNumber % 2;
 
 	sceneData += pad_uniform_buffer_size(sizeof(GPUSceneData)) * frameIndex;
 
@@ -1609,7 +1608,7 @@ void VulkanEngine::init_scene()
 		}
 	}*/
 
-
+	//--------------------------Adding texture to main quad------------------------
 	//create a sampler for the texture
 	VkSamplerCreateInfo samplerInfo = vkinit::sampler_create_info(VK_FILTER_NEAREST);
 
@@ -1631,31 +1630,63 @@ void VulkanEngine::init_scene()
 	//write to the descriptor set so that it points to our empire_diffuse texture
 	VkDescriptorImageInfo imageBufferInfo;
 	imageBufferInfo.sampler = blockySampler;
-	//imageBufferInfo.imageView = _loadedTextures["empire_diffuse"].imageView;
 	imageBufferInfo.imageView = _offtextureImageView;
 	imageBufferInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
 	VkWriteDescriptorSet texture1 = vkinit::write_descriptor_image(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, texturedMat->textureSet, &imageBufferInfo, 0);
 
 	vkUpdateDescriptorSets(_device, 1, &texture1, 0, nullptr);
+	//--------------------------Adding texture to main quad------------------------
+	// 
+	//-----------------refeed the texture buffer into offset buffer-----------------------------------------------
+	//create a sampler for the texture
+	VkSamplerCreateInfo samplerInfoff = vkinit::sampler_create_info(VK_FILTER_NEAREST);
+
+	VkSampler blockySampleroff;
+	vkCreateSampler(_device, &samplerInfoff, nullptr, &blockySampleroff);
+
+	Material* texturedMatoff = get_material("offshader");
+
+	//allocate the descriptor set for single-texture to use on the material
+	VkDescriptorSetAllocateInfo allocInfoff = {};
+	allocInfoff.pNext = nullptr;
+	allocInfoff.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+	allocInfoff.descriptorPool = _descriptorPool;
+	allocInfoff.descriptorSetCount = 1;
+	allocInfoff.pSetLayouts = &_singleTextureSetLayout;
+
+	vkAllocateDescriptorSets(_device, &allocInfoff, &texturedMatoff->textureSet);
+
+	//write to the descriptor set so that it points to our empire_diffuse texture
+	VkDescriptorImageInfo imageBufferInfoff;
+	imageBufferInfoff.sampler = blockySampler;
+	imageBufferInfoff.imageView = _offtextureImageView;
+	imageBufferInfoff.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+	VkWriteDescriptorSet texture1off = vkinit::write_descriptor_image(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, texturedMatoff->textureSet, &imageBufferInfoff, 0);
+
+	vkUpdateDescriptorSets(_device, 1, &texture1off, 0, nullptr);
+	//-----------------refeed the texture buffer into offset buffer-----------------------------------------------
 
 	RenderObject quad;
 	quad.mesh = get_mesh("quad");
 	quad.material = get_material("texturedmesh");//texturedmesh //defaultmesh
 	glm::mat4 translation = glm::translate(glm::mat4{ 1.0 }, glm::vec3(0, 5.0, 0));
-	glm::mat4 scale = glm::scale(glm::mat4{ 1.0 }, glm::vec3(10.0, 2.0, 1.0));
+	glm::mat4 scale = glm::scale(glm::mat4{ 1.0 }, glm::vec3(10.0, 5.0, 1.0));
 	quad.transformMatrix = translation * scale;
 	quad.indexed = true;
 
 	_renderables.push_back(quad);
 
-	quadMain = new RenderObject();
-	quadMain->mesh = get_mesh("quad");
-	quadMain->material = get_material("offshader");
-	glm::mat4 translationq = glm::translate(glm::mat4{ 1.0 }, glm::vec3(0, 10.0, 0));
-	glm::mat4 scaleq = glm::scale(glm::mat4{ 1.0 }, glm::vec3(10.0, 2.0, 1.0));
-	quadMain->transformMatrix = translationq * scaleq;
-	quadMain->indexed = true;
+	RenderObject quadMain;
+	quadMain.mesh = get_mesh("quad");
+	quadMain.material = get_material("offshader");
+	glm::mat4 translationq = glm::translate(glm::mat4{ 1.0 }, glm::vec3(0, 6.0, 0));
+	glm::mat4 scaleq = glm::scale(glm::mat4{ 1.0 }, glm::vec3(9.0, 5.0, 1.0));
+	quadMain.transformMatrix = translationq * scaleq;
+	quadMain.indexed = true;
+
+	_renderablesoffset.push_back(quadMain);
 }
 
 AllocatedBuffer VulkanEngine::create_buffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage)

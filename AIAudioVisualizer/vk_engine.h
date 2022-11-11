@@ -133,7 +133,7 @@ struct GPUObjectData {
 	glm::mat4 modelMatrix;
 };
 
-constexpr unsigned int FRAME_OVERLAP = 2;
+constexpr unsigned int FRAME_OVERLAP = 3; //2 for double buffer + 1 offset frame
 
 class VulkanEngine {
 public:
@@ -159,7 +159,7 @@ public:
 
 	VkPhysicalDeviceProperties _gpuProperties;
 
-	FrameData _frames[FRAME_OVERLAP];
+	FrameData _frames[FRAME_OVERLAP];//2 for double buffer + 1 offset frame
 	
 	VkQueue _graphicsQueue;
 	uint32_t _graphicsQueueFamily;
@@ -223,8 +223,7 @@ public:
 
 	//default array of renderable objects
 	std::vector<RenderObject> _renderables;
-
-	RenderObject * quadMain;
+	std::vector<RenderObject> _renderablesoffset;
 
 	std::unordered_map<std::string, Material> _materials;
 	std::unordered_map<std::string, Mesh> _meshes;

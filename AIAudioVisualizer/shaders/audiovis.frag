@@ -21,18 +21,6 @@ layout(set = 2, binding = 0) uniform sampler2D tex1;
 
 void main() 
 {	
-	//outFragColor = vec4(inColor + sceneData.ambientColor.xyz,1.0f);
-	//outFragColor = vec4(texCoord.x,texCoord.y,0.5f,1.0f);
 	vec3 color = texture(tex1,texCoord).xyz;
 	outFragColor = vec4(color,1.0f);
-
-	//float dist = distance(fragCoord.xy, vec2(0.5f));
-
-	//if (dist < 0.1){
-	//	outFragColor = vec4(1.0f,0.0f,0.0f,1.0f);
-	//}
-	//else
-	//{
-	//	outFragColor = vec4(1.0f,1.0f,0.0f,1.0f);
-	//}
 }
