@@ -300,6 +300,7 @@ void VulkanEngine::draw()
 	transitionImageLayout(cmd, _offtextureImage._image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
 	transitionImageLayout(cmd, _lastFrameImage._image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 	store_lastFrame(cmd);
+	transitionImageLayout(cmd, _lastFrameImage._image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
 	//finalize the command buffer (we can no longer add commands, but it can now be executed)
 	VK_CHECK(vkEndCommandBuffer(cmd));
@@ -1725,33 +1726,33 @@ void VulkanEngine::init_scene()
 	// 
 	//-----------------refeed the texture buffer into offset buffer-----------------------------------------------
 	//create a sampler for the texture
-	//VkSamplerCreateInfo samplerInfoff = vkinit::sampler_create_info(VK_FILTER_NEAREST);
+	VkSamplerCreateInfo samplerInfoff = vkinit::sampler_create_info(VK_FILTER_NEAREST);
 
-	//VkSampler blockySampleroff;
-	//vkCreateSampler(_device, &samplerInfoff, nullptr, &blockySampleroff);
+	VkSampler blockySampleroff;
+	vkCreateSampler(_device, &samplerInfoff, nullptr, &blockySampleroff);
 
-	//Material* texturedMatoff = get_material("offshader");
+	Material* texturedMatoff = get_material("offshader");
 
-	////allocate the descriptor set for single-texture to use on the material
-	//VkDescriptorSetAllocateInfo allocInfoff = {};
-	//allocInfoff.pNext = nullptr;
-	//allocInfoff.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-	//allocInfoff.descriptorPool = _descriptorPool;
-	//allocInfoff.descriptorSetCount = 1;
-	//allocInfoff.pSetLayouts = &_singleTextureSetLayout;
+	//allocate the descriptor set for single-texture to use on the material
+	VkDescriptorSetAllocateInfo allocInfoff = {};
+	allocInfoff.pNext = nullptr;
+	allocInfoff.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+	allocInfoff.descriptorPool = _descriptorPool;
+	allocInfoff.descriptorSetCount = 1;
+	allocInfoff.pSetLayouts = &_singleTextureSetLayout;
 
-	//vkAllocateDescriptorSets(_device, &allocInfoff, &texturedMatoff->textureSet);
+	vkAllocateDescriptorSets(_device, &allocInfoff, &texturedMatoff->textureSet);
 
-	////write to the descriptor set so that it points to our empire_diffuse texture
-	//VkDescriptorImageInfo imageBufferInfoff;
-	//imageBufferInfoff.sampler = blockySampler;
-	////imageBufferInfoff.imageView = _offtextureImageView;
-	//imageBufferInfoff.imageView = _lastFrameImageView;
-	//imageBufferInfoff.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	//write to the descriptor set so that it points to our empire_diffuse texture
+	VkDescriptorImageInfo imageBufferInfoff;
+	imageBufferInfoff.sampler = blockySampler;
+	//imageBufferInfoff.imageView = _offtextureImageView;
+	imageBufferInfoff.imageView = _lastFrameImageView;
+	imageBufferInfoff.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
-	//VkWriteDescriptorSet texture1off = vkinit::write_descriptor_image(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, texturedMatoff->textureSet, &imageBufferInfoff, 0);
+	VkWriteDescriptorSet texture1off = vkinit::write_descriptor_image(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, texturedMatoff->textureSet, &imageBufferInfoff, 0);
 
-	//vkUpdateDescriptorSets(_device, 1, &texture1off, 0, nullptr);
+	vkUpdateDescriptorSets(_device, 1, &texture1off, 0, nullptr);
 	//-----------------refeed the texture buffer into offset buffer-----------------------------------------------
 
 	RenderObject quad;
@@ -1766,7 +1767,7 @@ void VulkanEngine::init_scene()
 
 	RenderObject quadMain;
 	quadMain.mesh = get_mesh("quad");
-	quadMain.material = get_material("defaultmesh");//offshader//defaultmesh
+	quadMain.material = get_material("offshader");//offshader//defaultmesh
 	glm::mat4 translationq = glm::translate(glm::mat4{ 1.0 }, glm::vec3(0, 6.0, 0));
 	glm::mat4 scaleq = glm::scale(glm::mat4{ 1.0 }, glm::vec3(9.0, 5.0, 1.0));
 	quadMain.transformMatrix = translationq * scaleq;
