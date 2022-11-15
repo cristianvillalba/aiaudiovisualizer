@@ -297,6 +297,8 @@ void VulkanEngine::draw()
 	vkCmdEndRenderPass(cmd);
 	//-------------------Final render pass------------------------------
 
+	transitionImageLayout(cmd, _offtextureImage._image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+	transitionImageLayout(cmd, _lastFrameImage._image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 	store_lastFrame(cmd);
 
 	//finalize the command buffer (we can no longer add commands, but it can now be executed)
@@ -341,6 +343,36 @@ void VulkanEngine::draw()
 	_frameNumber++;
 }
 
+void VulkanEngine::transitionImageLayout(VkCommandBuffer cmd, VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout)
+{
+	VkImageMemoryBarrier barrier{};
+	barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+	barrier.oldLayout = oldLayout;
+	barrier.newLayout = newLayout;
+
+	barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+
+	barrier.image = image;
+	barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	barrier.subresourceRange.baseMipLevel = 0;
+	barrier.subresourceRange.levelCount = 1;
+	barrier.subresourceRange.baseArrayLayer = 0;
+	barrier.subresourceRange.layerCount = 1;
+
+	barrier.srcAccessMask = 0; // TODO
+	barrier.dstAccessMask = 0; // TODO
+
+	vkCmdPipelineBarrier(
+		cmd,
+		VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+		0,
+		0, nullptr,
+		0, nullptr,
+		1, &barrier
+	);
+}
+
 void VulkanEngine::store_lastFrame(VkCommandBuffer cmd)
 {
 	VkImageCopy imageCopyRegion{};
@@ -355,7 +387,7 @@ void VulkanEngine::store_lastFrame(VkCommandBuffer cmd)
 	// Issue the copy command
 	vkCmdCopyImage(
 		cmd,
-		_offtextureImage._image, VK_IMAGE_LAYOUT_GENERAL,
+		_offtextureImage._image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
 		_lastFrameImage._image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
 		1,
 		&imageCopyRegion);
@@ -1692,7 +1724,7 @@ void VulkanEngine::init_scene()
 	//--------------------------Adding texture to main quad------------------------
 	// 
 	//-----------------refeed the texture buffer into offset buffer-----------------------------------------------
-	////create a sampler for the texture
+	//create a sampler for the texture
 	//VkSamplerCreateInfo samplerInfoff = vkinit::sampler_create_info(VK_FILTER_NEAREST);
 
 	//VkSampler blockySampleroff;
@@ -1734,7 +1766,7 @@ void VulkanEngine::init_scene()
 
 	RenderObject quadMain;
 	quadMain.mesh = get_mesh("quad");
-	quadMain.material = get_material("offshader");//offshader//defaultmesh
+	quadMain.material = get_material("defaultmesh");//offshader//defaultmesh
 	glm::mat4 translationq = glm::translate(glm::mat4{ 1.0 }, glm::vec3(0, 6.0, 0));
 	glm::mat4 scaleq = glm::scale(glm::mat4{ 1.0 }, glm::vec3(9.0, 5.0, 1.0));
 	quadMain.transformMatrix = translationq * scaleq;

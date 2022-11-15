@@ -246,6 +246,8 @@ public:
 
 	void draw_quad(VkCommandBuffer cmd);
 
+	void transitionImageLayout(VkCommandBuffer cmd, VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout);
+
 	void store_lastFrame(VkCommandBuffer cmd);
 
 	AllocatedBuffer create_buffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage);
