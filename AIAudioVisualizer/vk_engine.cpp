@@ -265,6 +265,7 @@ void VulkanEngine::draw()
 	vkCmdEndRenderPass(cmd);
 	//-------------------First render pass------------------------------
 
+	//store_lastFrame(cmd);
 
 	//-------------------Final render pass------------------------------
 	//make a clear-color from frame number. This will flash with a 120 frame period.
@@ -338,6 +339,26 @@ void VulkanEngine::draw()
 
 	//increase the number of frames drawn
 	_frameNumber++;
+}
+
+void VulkanEngine::store_lastFrame(VkCommandBuffer cmd)
+{
+	VkImageCopy imageCopyRegion{};
+	imageCopyRegion.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	imageCopyRegion.srcSubresource.layerCount = 1;
+	imageCopyRegion.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	imageCopyRegion.dstSubresource.layerCount = 1;
+	imageCopyRegion.extent.width = _windowExtent.width;
+	imageCopyRegion.extent.height = _windowExtent.height;
+	imageCopyRegion.extent.depth = 1;
+
+	// Issue the copy command
+	vkCmdCopyImage(
+		cmd,
+		_offtextureImage._image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+		_lastFrameImage._image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+		1,
+		&imageCopyRegion);
 }
 
 void VulkanEngine::run()
@@ -577,6 +598,38 @@ void VulkanEngine::init_offtexture()
 		vkDestroyImageView(_device, _offdepthImageView, nullptr);
 		vmaDestroyImage(_allocator, _offdepthImage._image, _offdepthImage._allocation);
 	});
+
+
+	//----------------------------------last frame buffer-------------------------------------
+	//hardcoding the depth format to 32 bit float
+	_depthFormat = VK_FORMAT_B8G8R8A8_SRGB;
+
+	//the depth image will be a image with the format we selected and Depth Attachment usage flag
+	VkImageCreateInfo limg_info = vkinit::image_create_info(_depthFormat, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, depthImageExtent);
+
+	//for the depth image, we want to allocate it from gpu local memory
+	VmaAllocationCreateInfo limg_allocinfo = {};
+	limg_allocinfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+	limg_allocinfo.requiredFlags = VkMemoryPropertyFlags(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+	//allocate and create the image
+	vmaCreateImage(_allocator, &limg_info, &limg_allocinfo, &_lastFrameImage._image, &_lastFrameImage._allocation, nullptr);
+
+	//build a image-view for the depth image to use for rendering
+	VkImageViewCreateInfo lview_info = vkinit::imageview_create_info(_depthFormat, _lastFrameImage._image, VK_IMAGE_ASPECT_COLOR_BIT);
+
+	VK_CHECK(vkCreateImageView(_device, &lview_info, nullptr, &_lastFrameImageView));
+
+	//add to deletion queues
+	_mainDeletionQueue.push_function([=]() {
+		vkDestroyImageView(_device, _lastFrameImageView, nullptr);
+		vmaDestroyImage(_allocator, _lastFrameImage._image, _lastFrameImage._allocation);
+	});
+
+
+	//switch back the hardcoding the depth format to 32 bit float
+	_depthFormat = VK_FORMAT_D32_SFLOAT;
+
 }
 
 void VulkanEngine::init_default_renderpass()
@@ -683,12 +736,12 @@ void VulkanEngine::init_offscreen_renderpass()
 	color_attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 	color_attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 	color_attachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	color_attachment.finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	color_attachment.finalLayout = VK_IMAGE_LAYOUT_GENERAL;
 
 	VkAttachmentReference color_attachment_ref = {};
 	color_attachment_ref.attachment = 0;
 	//color_attachment_ref.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-	color_attachment_ref.layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	color_attachment_ref.layout = VK_IMAGE_LAYOUT_GENERAL;
 
 	VkAttachmentDescription depth_attachment = {};
 	// Depth attachment
@@ -1631,7 +1684,7 @@ void VulkanEngine::init_scene()
 	VkDescriptorImageInfo imageBufferInfo;
 	imageBufferInfo.sampler = blockySampler;
 	imageBufferInfo.imageView = _offtextureImageView;
-	imageBufferInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	imageBufferInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
 
 	VkWriteDescriptorSet texture1 = vkinit::write_descriptor_image(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, texturedMat->textureSet, &imageBufferInfo, 0);
 
@@ -1639,33 +1692,34 @@ void VulkanEngine::init_scene()
 	//--------------------------Adding texture to main quad------------------------
 	// 
 	//-----------------refeed the texture buffer into offset buffer-----------------------------------------------
-	//create a sampler for the texture
-	VkSamplerCreateInfo samplerInfoff = vkinit::sampler_create_info(VK_FILTER_NEAREST);
+	////create a sampler for the texture
+	//VkSamplerCreateInfo samplerInfoff = vkinit::sampler_create_info(VK_FILTER_NEAREST);
 
-	VkSampler blockySampleroff;
-	vkCreateSampler(_device, &samplerInfoff, nullptr, &blockySampleroff);
+	//VkSampler blockySampleroff;
+	//vkCreateSampler(_device, &samplerInfoff, nullptr, &blockySampleroff);
 
-	Material* texturedMatoff = get_material("offshader");
+	//Material* texturedMatoff = get_material("offshader");
 
-	//allocate the descriptor set for single-texture to use on the material
-	VkDescriptorSetAllocateInfo allocInfoff = {};
-	allocInfoff.pNext = nullptr;
-	allocInfoff.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-	allocInfoff.descriptorPool = _descriptorPool;
-	allocInfoff.descriptorSetCount = 1;
-	allocInfoff.pSetLayouts = &_singleTextureSetLayout;
+	////allocate the descriptor set for single-texture to use on the material
+	//VkDescriptorSetAllocateInfo allocInfoff = {};
+	//allocInfoff.pNext = nullptr;
+	//allocInfoff.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+	//allocInfoff.descriptorPool = _descriptorPool;
+	//allocInfoff.descriptorSetCount = 1;
+	//allocInfoff.pSetLayouts = &_singleTextureSetLayout;
 
-	vkAllocateDescriptorSets(_device, &allocInfoff, &texturedMatoff->textureSet);
+	//vkAllocateDescriptorSets(_device, &allocInfoff, &texturedMatoff->textureSet);
 
-	//write to the descriptor set so that it points to our empire_diffuse texture
-	VkDescriptorImageInfo imageBufferInfoff;
-	imageBufferInfoff.sampler = blockySampler;
-	imageBufferInfoff.imageView = _offtextureImageView;
-	imageBufferInfoff.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	////write to the descriptor set so that it points to our empire_diffuse texture
+	//VkDescriptorImageInfo imageBufferInfoff;
+	//imageBufferInfoff.sampler = blockySampler;
+	////imageBufferInfoff.imageView = _offtextureImageView;
+	//imageBufferInfoff.imageView = _lastFrameImageView;
+	//imageBufferInfoff.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
-	VkWriteDescriptorSet texture1off = vkinit::write_descriptor_image(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, texturedMatoff->textureSet, &imageBufferInfoff, 0);
+	//VkWriteDescriptorSet texture1off = vkinit::write_descriptor_image(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, texturedMatoff->textureSet, &imageBufferInfoff, 0);
 
-	vkUpdateDescriptorSets(_device, 1, &texture1off, 0, nullptr);
+	//vkUpdateDescriptorSets(_device, 1, &texture1off, 0, nullptr);
 	//-----------------refeed the texture buffer into offset buffer-----------------------------------------------
 
 	RenderObject quad;
@@ -1680,7 +1734,7 @@ void VulkanEngine::init_scene()
 
 	RenderObject quadMain;
 	quadMain.mesh = get_mesh("quad");
-	quadMain.material = get_material("offshader");
+	quadMain.material = get_material("defaultmesh");//offshader//defaultmesh
 	glm::mat4 translationq = glm::translate(glm::mat4{ 1.0 }, glm::vec3(0, 6.0, 0));
 	glm::mat4 scaleq = glm::scale(glm::mat4{ 1.0 }, glm::vec3(9.0, 5.0, 1.0));
 	quadMain.transformMatrix = translationq * scaleq;

@@ -182,6 +182,9 @@ public:
 	VkImageView _offdepthImageView;
 	AllocatedImage _offdepthImage;
 
+	VkImageView _lastFrameImageView;
+	AllocatedImage _lastFrameImage;
+
 
     DeletionQueue _mainDeletionQueue;
 	
@@ -242,6 +245,8 @@ public:
 	void draw_objects(VkCommandBuffer cmd, RenderObject* first, int count);
 
 	void draw_quad(VkCommandBuffer cmd);
+
+	void store_lastFrame(VkCommandBuffer cmd);
 
 	AllocatedBuffer create_buffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage);
 
