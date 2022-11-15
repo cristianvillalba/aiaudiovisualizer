@@ -27,10 +27,10 @@ void main()
 	float dis = distance(fragCoord.xy, vec2(0.5f));
 
 	if (dis < 3.2){
-		//outFragColor = vec4(0.5f,0.5f,0.5f,1.0f);
-		vec2 offtex = vec2(texCoord.x - 0.01f, texCoord.y);
-		vec3 color = texture(tex1, texCoord).xyz;
-		outFragColor = vec4(color.x, color.y, color.z, 1.0f);
+		outFragColor = vec4(0.5f,0.5f,0.5f,1.0f);
+		//vec2 offtex = vec2(texCoord.x - 0.01f, texCoord.y);
+		//vec3 color = texture(tex1, texCoord).xyz;
+		//outFragColor = vec4(color.x, color.y, color.z, 1.0f);
 	}
 	else
 	{

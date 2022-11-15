@@ -265,8 +265,6 @@ void VulkanEngine::draw()
 	vkCmdEndRenderPass(cmd);
 	//-------------------First render pass------------------------------
 
-	//store_lastFrame(cmd);
-
 	//-------------------Final render pass------------------------------
 	//make a clear-color from frame number. This will flash with a 120 frame period.
 	VkClearValue clearValue;
@@ -298,6 +296,8 @@ void VulkanEngine::draw()
 	//finalize the render pass
 	vkCmdEndRenderPass(cmd);
 	//-------------------Final render pass------------------------------
+
+	store_lastFrame(cmd);
 
 	//finalize the command buffer (we can no longer add commands, but it can now be executed)
 	VK_CHECK(vkEndCommandBuffer(cmd));
@@ -355,7 +355,7 @@ void VulkanEngine::store_lastFrame(VkCommandBuffer cmd)
 	// Issue the copy command
 	vkCmdCopyImage(
 		cmd,
-		_offtextureImage._image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+		_offtextureImage._image, VK_IMAGE_LAYOUT_GENERAL,
 		_lastFrameImage._image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
 		1,
 		&imageCopyRegion);
@@ -552,7 +552,7 @@ void VulkanEngine::init_offtexture()
 	_depthFormat = VK_FORMAT_B8G8R8A8_SRGB;
 
 	//the depth image will be a image with the format we selected and Depth Attachment usage flag
-	VkImageCreateInfo dimg_info = vkinit::image_create_info(_depthFormat, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, depthImageExtent);
+	VkImageCreateInfo dimg_info = vkinit::image_create_info(_depthFormat, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, depthImageExtent);
 
 	//for the depth image, we want to allocate it from gpu local memory
 	VmaAllocationCreateInfo dimg_allocinfo = {};
@@ -605,7 +605,7 @@ void VulkanEngine::init_offtexture()
 	_depthFormat = VK_FORMAT_B8G8R8A8_SRGB;
 
 	//the depth image will be a image with the format we selected and Depth Attachment usage flag
-	VkImageCreateInfo limg_info = vkinit::image_create_info(_depthFormat, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, depthImageExtent);
+	VkImageCreateInfo limg_info = vkinit::image_create_info(_depthFormat, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, depthImageExtent);
 
 	//for the depth image, we want to allocate it from gpu local memory
 	VmaAllocationCreateInfo limg_allocinfo = {};
@@ -1734,7 +1734,7 @@ void VulkanEngine::init_scene()
 
 	RenderObject quadMain;
 	quadMain.mesh = get_mesh("quad");
-	quadMain.material = get_material("defaultmesh");//offshader//defaultmesh
+	quadMain.material = get_material("offshader");//offshader//defaultmesh
 	glm::mat4 translationq = glm::translate(glm::mat4{ 1.0 }, glm::vec3(0, 6.0, 0));
 	glm::mat4 scaleq = glm::scale(glm::mat4{ 1.0 }, glm::vec3(9.0, 5.0, 1.0));
 	quadMain.transformMatrix = translationq * scaleq;
