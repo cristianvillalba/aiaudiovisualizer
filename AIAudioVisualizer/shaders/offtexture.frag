@@ -21,19 +21,17 @@ layout(set = 2, binding = 0) uniform sampler2D tex1;
 
 void main() 
 {	
-	//outFragColor = vec4(inColor + sceneData.ambientColor.xyz,1.0f);
-	//vec3 color = texture(tex1,texCoord).xyz;
-
 	float dis = distance(fragCoord.xy, vec2(0.5f));
+	vec3 finalcolor = vec3(0.0f, 0.0f, 0.0f);
+	vec2 offtex = vec2(texCoord.x + 0.005f, texCoord.y);
+	vec3 oldcolor = texture(tex1, offtex).xyz;
+	//vec3 oldcolor = texture(tex1, texCoord).xyz;
 
-	if (dis < 3.2){
-		//outFragColor = vec4(0.5f,0.5f,0.5f,1.0f);
-		vec2 offtex = vec2(texCoord.x - 0.0001f, texCoord.y);
-		vec3 color = texture(tex1, texCoord).xyz;
-		outFragColor = vec4(color.x, color.y, color.z, 1.0f);
+	if (dis < 0.8){
+		finalcolor = vec3(1.0f, 0.0f,0.0f);
 	}
-	else
-	{
-		outFragColor = vec4(1.0f,1.0f,0.0f,1.0f);
-	}
+	
+	finalcolor = finalcolor  + oldcolor * 0.9;
+
+	outFragColor = vec4(finalcolor, 1.0f);
 }

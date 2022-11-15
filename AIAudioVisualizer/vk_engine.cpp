@@ -1746,7 +1746,6 @@ void VulkanEngine::init_scene()
 	//write to the descriptor set so that it points to our empire_diffuse texture
 	VkDescriptorImageInfo imageBufferInfoff;
 	imageBufferInfoff.sampler = blockySampler;
-	//imageBufferInfoff.imageView = _offtextureImageView;
 	imageBufferInfoff.imageView = _lastFrameImageView;
 	imageBufferInfoff.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
@@ -1769,7 +1768,7 @@ void VulkanEngine::init_scene()
 	quadMain.mesh = get_mesh("quad");
 	quadMain.material = get_material("offshader");//offshader//defaultmesh
 	glm::mat4 translationq = glm::translate(glm::mat4{ 1.0 }, glm::vec3(0, 6.0, 0));
-	glm::mat4 scaleq = glm::scale(glm::mat4{ 1.0 }, glm::vec3(9.0, 5.0, 1.0));
+	glm::mat4 scaleq = glm::scale(glm::mat4{ 1.0 }, glm::vec3(14.0, 7.0, 1.0));
 	quadMain.transformMatrix = translationq * scaleq;
 	quadMain.indexed = true;
 
