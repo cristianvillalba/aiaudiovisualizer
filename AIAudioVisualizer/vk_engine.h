@@ -127,6 +127,9 @@ struct GPUSceneData {
 	glm::vec4 ambientColor;
 	glm::vec4 sunlightDirection; //w for sun power
 	glm::vec4 sunlightColor;
+	glm::vec4 audiodata01;//x is bass, y is drums, z is other, w is vocals
+	glm::vec4 audiodata02;//future use
+	glm::float32 frame;
 };
 
 struct GPUObjectData {

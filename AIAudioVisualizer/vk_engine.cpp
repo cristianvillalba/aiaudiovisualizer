@@ -1466,6 +1466,7 @@ void VulkanEngine::draw_quad(VkCommandBuffer cmd)
 	camData.viewproj = projection * view;
 
 	void* data;
+	//Using the camera buffer of the 3rd frame
 	vmaMapMemory(_allocator, _frames[2].cameraBuffer._allocation, &data);
 
 	memcpy(data, &camData, sizeof(GPUCameraData));
@@ -1475,12 +1476,24 @@ void VulkanEngine::draw_quad(VkCommandBuffer cmd)
 	float framed = (_frameNumber / 120.f);
 
 	_sceneParameters.ambientColor = { sin(framed),0,cos(framed),1 };
+	_sceneParameters.frame = framed;
+
+
+	for (int j = 0; j < 50; j++) 
+	{
+		if (!isnan(audioData.bufferpredictl[77000 - j])){
+			_sceneParameters.audiodata01 = { audioData.bufferpredictl[77000 - j], 0, 0 , 0 };
+			//std::cout << audioData.bufferpredictl[77000 - j] << std::endl;
+		}
+		break;
+	}
+	
 
 	char* sceneData;
 	vmaMapMemory(_allocator, _sceneParameterBuffer._allocation, (void**)&sceneData);
 
 	//int frameIndex = _frameNumber % FRAME_OVERLAP;
-	int frameIndex = 2;
+	int frameIndex = 2; //using data from the 3rd frame
 
 	sceneData += pad_uniform_buffer_size(sizeof(GPUSceneData)) * frameIndex;
 
@@ -1490,6 +1503,7 @@ void VulkanEngine::draw_quad(VkCommandBuffer cmd)
 
 
 	void* objectData;
+	//Using the object buffer of the 3rd frame
 	vmaMapMemory(_allocator, _frames[2].objectBuffer._allocation, &objectData);
 
 	GPUObjectData* objectSSBO = (GPUObjectData*)objectData;
@@ -2088,7 +2102,7 @@ void VulkanEngine::init_sound()
 	logAI.AddLog("[%s] - %s %d\n", "info", "Number of devices =", numDevices);
 
 	audioData.devices = new std::vector<std::string>();
-	audioData.deviceselection = 0;//it must be 2 in my computer
+	audioData.deviceselection = 1;//it must be 1 in my computer
 
 	for (int i = 0; i < numDevices; i++)
 	{
@@ -2166,8 +2180,8 @@ void VulkanEngine::init_sound()
 	audioData.waveout = bufferpredict;
 
 	err = Pa_OpenStream(&stream,
-		&inputParameters,          // no input channels 
-		NULL,          // stereo output 
+		&inputParameters,          // input parameters
+		NULL,          // output parameters
 		SAMPLE_RATE,
 		FRAMES_PER_BUFFER,        // frames per buffer
 		paNoFlag,

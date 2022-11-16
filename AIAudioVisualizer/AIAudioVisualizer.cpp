@@ -229,8 +229,10 @@ int AudioVisualizer::predict(float* samples, int numchannels, float * bufflstart
 		bufferindexr += 512; //hop size
 	}
 
-	//std::cout << "prediction done..." << std::endl;
-
+	std::cout << "prediction done..." << std::endl;
+	if (!isnan(bufferindexl[77000])) {
+		std::cout << "here:" << bufferindexl[77000] << std::endl;
+	}
 	return  0;
 }
 
