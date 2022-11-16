@@ -59,7 +59,7 @@ static int recordCallback(const void* inputBuffer, void* outputBuffer,
 		framesToCalc = framesLeft;
 
 		AudioVisualizer* aipredicter = (AudioVisualizer*)data->aipredicter;
-		aipredicter->predict(data->recordedSamples, 2, data->bufferpredictl, data->bufferpredictr);
+		aipredicter->predict(data->recordedSamples, 2, data->bufferpredictl, data->bufferpredictr, data->visualbuffer);
 		
 		////----Test wave out
 		//AudioFile<float> audioFile;
@@ -188,6 +188,7 @@ void VulkanEngine::cleanup()
 		audioAI->freeMem();
 		delete audioAI;
 		free(audioData.recordedSamples);//freeing dynamic allocation
+		free(audioData.visualbuffer);//freeing dynamic allocation
 
 		int err = Pa_StopStream(stream);
 		if (err != paNoError) {
@@ -1478,15 +1479,19 @@ void VulkanEngine::draw_quad(VkCommandBuffer cmd)
 	_sceneParameters.ambientColor = { sin(framed),0,cos(framed),1 };
 	_sceneParameters.frame = framed;
 
-
-	for (int j = 0; j < 50; j++) 
+	if (audioData.visualbuffer->size() > 0)
 	{
-		if (!isnan(audioData.bufferpredictl[77000 - j])){
-			_sceneParameters.audiodata01 = { audioData.bufferpredictl[77000 - j], 0, 0 , 0 };
-			//std::cout << audioData.bufferpredictl[77000 - j] << std::endl;
-		}
-		break;
-	}
+		_sceneParameters.audiodata01 = { audioData.visualbuffer->front(), 0, 0 , 0};
+		audioData.visualbuffer->pop_front();
+	} 
+	//for (int j = 0; j < 50; j++) 
+	//{
+	//	if (!isnan(audioData.bufferpredictl[77000 - j])){
+	//		_sceneParameters.audiodata01 = { audioData.bufferpredictl[77000 - j], 0, 0 , 0 };
+	//		//std::cout << audioData.bufferpredictl[77000 - j] << std::endl;
+	//	}
+	//	break;
+	//}
 	
 
 	char* sceneData;
@@ -2103,6 +2108,7 @@ void VulkanEngine::init_sound()
 
 	audioData.devices = new std::vector<std::string>();
 	audioData.deviceselection = 1;//it must be 1 in my computer
+	audioData.visualbuffer = new std::deque<float>();
 
 	for (int i = 0; i < numDevices; i++)
 	{

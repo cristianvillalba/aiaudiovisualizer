@@ -97,7 +97,7 @@ int AudioVisualizer::initSound(int samplesperchannel)
 	return 0;
 }
 
-int AudioVisualizer::predict(float* samples, int numchannels, float * bufflstart, float * buffrstart)
+int AudioVisualizer::predict(float* samples, int numchannels, float * bufflstart, float * buffrstart, std::deque<float>* visualbuffer)
 {
 	currentFrame = 0;
 	size_t size = 1 * 1025 * 21 * 2; //final size of tensor input
@@ -227,12 +227,21 @@ int AudioVisualizer::predict(float* samples, int numchannels, float * bufflstart
 
 		bufferindexl += 512; //hop size
 		bufferindexr += 512; //hop size
+
 	}
 
 	std::cout << "prediction done..." << std::endl;
-	if (!isnan(bufferindexl[77000])) {
-		std::cout << "here:" << bufferindexl[77000] << std::endl;
+
+	int buffersize = nframes * 512 + 2048; //adding the last window
+
+	for (int j = (buffersize - 1); j > (buffersize - 500); j--)
+	{
+		if (!isnan(bufferindexl[j]) && visualbuffer->size() < 500) {
+			//std::cout << "here:" << bufferindexl[77000] << std::endl;
+			visualbuffer->push_back(bufferindexl[j]);
+		}
 	}
+	
 	return  0;
 }
 

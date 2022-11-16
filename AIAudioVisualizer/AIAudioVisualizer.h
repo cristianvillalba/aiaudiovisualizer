@@ -7,6 +7,7 @@
 #include <fstream>
 #include <tensorflow/c/c_api.h>
 #include <scope_guard.hpp>
+#include <deque>
 
 #include "cppflow/ops.h"
 #include "cppflow/model.h"
@@ -28,7 +29,7 @@ public:
 	void init();
 	int loadModel();
 	int initSound(int samplesperchannel);
-	int predict(float* samples, int numchannels, float* bufflstart, float* buffrstart);
+	int predict(float* samples, int numchannels, float* bufflstart, float* buffrstart, std::deque<float> * visualbuffer);
 	int getNumberOfFrames();
 	int freeMem();
 

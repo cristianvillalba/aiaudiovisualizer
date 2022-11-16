@@ -4,6 +4,7 @@
 
 #include <vector>
 #include <string>
+#include <deque>
 
 #define SAMPLE_RATE  (44100)
 #define FRAMES_PER_BUFFER (512)
@@ -32,6 +33,8 @@ struct paTestData
 
 	std::vector<std::string> * devices;
 	int deviceselection;
+
+	std::deque<float> * visualbuffer;
 };
 
 extern struct paTestData audioData; //this instance is defined in vk_engine.cpp

@@ -25,17 +25,22 @@ layout(set = 2, binding = 0) uniform sampler2D tex1;
 void main() 
 {	
 	//vec2 coord = vec2(fragCoord.x, fragCoord.y + sin(sceneData.frame * 5.0f));
-	vec2 coord = vec2(fragCoord.x, fragCoord.y + sceneData.audiodata01.x * 1000.0f);
+	//vec2 coord = vec2(fragCoord.x, fragCoord.y + sceneData.audiodata01.x * 1000.0f);
+	float wavepoint = smoothstep( -0.15, 0.15, sceneData.audiodata01.x);
+	vec2 coord = vec2(fragCoord.x, fragCoord.y + wavepoint * 10);
 	float dis = distance(coord, vec2(0.5f));
 	vec3 finalcolor = vec3(0.0f, 0.0f, 0.0f);
 	vec2 offtex = vec2(texCoord.x + 0.005f, -texCoord.y);
 	vec3 oldcolor = texture(tex1, offtex).xyz;
 
+	// add wave form on top	
+	//float wavecol = 1.0 -  smoothstep( 0.0, 0.15, abs(sceneData.audiodata01.x - texCoord.y) );
 
 	if (dis < 0.2){
 		finalcolor = vec3(1.0f, 0.0f,0.0f);
 	}
 	
+	//finalcolor.x = wavecol;
 	finalcolor = finalcolor  + oldcolor * 0.9;
 
 	outFragColor = vec4(finalcolor, 1.0f);
