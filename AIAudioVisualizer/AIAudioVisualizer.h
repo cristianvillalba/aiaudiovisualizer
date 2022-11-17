@@ -29,7 +29,7 @@ public:
 	void init();
 	int loadModel();
 	int initSound(int samplesperchannel);
-	int predict(float* samples, int numchannels, float* bufflstart, float* buffrstart, std::deque<float> * visualbuffer);
+	int predict(float* samples, int numchannels, float* bufflstart00, float* buffrstart00, float* bufflstart01, float* buffrstart01, float* bufflstart02, float* buffrstart02, float* bufflstart03, float* buffrstart03, std::deque<float> * visualbuffer00, std::deque<float>* visualbuffer01, std::deque<float>* visualbuffer02, std::deque<float>* visualbuffer03);
 	int getNumberOfFrames();
 	int freeMem();
 

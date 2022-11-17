@@ -27,14 +27,23 @@ struct paTestData
 	int			 visualoffset;
 	SAMPLE* recordedSamples;
 	void* aipredicter;
-	float* bufferpredictl;
-	float* bufferpredictr;
+	float* bufferpredictl00;
+	float* bufferpredictr00;
+	float* bufferpredictl01;
+	float* bufferpredictr01;
+	float* bufferpredictl02;
+	float* bufferpredictr02;
+	float* bufferpredictl03;
+	float* bufferpredictr03;
 	void* waveout;
 
 	std::vector<std::string> * devices;
 	int deviceselection;
 
-	std::deque<float> * visualbuffer;
+	std::deque<float>* visualbuffer00;
+	std::deque<float>* visualbuffer01;
+	std::deque<float>* visualbuffer02;
+	std::deque<float>* visualbuffer03;
 };
 
 extern struct paTestData audioData; //this instance is defined in vk_engine.cpp

@@ -97,7 +97,7 @@ int AudioVisualizer::initSound(int samplesperchannel)
 	return 0;
 }
 
-int AudioVisualizer::predict(float* samples, int numchannels, float * bufflstart, float * buffrstart, std::deque<float>* visualbuffer)
+int AudioVisualizer::predict(float* samples, int numchannels, float* bufflstart00, float* buffrstart00, float* bufflstart01, float* buffrstart01, float* bufflstart02, float* buffrstart02, float* bufflstart03, float* buffrstart03, std::deque<float>* visualbuffer00, std::deque<float>* visualbuffer01, std::deque<float>* visualbuffer02, std::deque<float>* visualbuffer03)
 {
 	currentFrame = 0;
 	size_t size = 1 * 1025 * 21 * 2; //final size of tensor input
@@ -202,14 +202,77 @@ int AudioVisualizer::predict(float* samples, int numchannels, float * bufflstart
 	xt::xarray<double> magnitudestftoutr = xt::view(sources, xt::all(), xt::all(), 1, xt::all());
 
 	//-----mix step
-	float* bufferindexl = bufflstart;
-	float* bufferindexr = buffrstart;
+	float* bufferindexl00 = bufflstart00;
+	float* bufferindexr00 = buffrstart00;
+	float* bufferindexl01 = bufflstart01;
+	float* bufferindexr01 = buffrstart01;
+	float* bufferindexl02 = bufflstart02;
+	float* bufferindexr02 = buffrstart02;
+	float* bufferindexl03 = bufflstart03;
+	float* bufferindexr03 = buffrstart03;
 
 	stftl->inverseWindowing(false);
 	stftr->inverseWindowing(false);
 
 	for (int k = 0; k < nframes; k++)
 	{
+		for (int j = 0; j < stftl->numBins(); j++)
+		{
+			gam::Complex comp0;
+			gam::Complex comp1;
+
+			comp0.fromPolar(magnitudestftoutl(j, k, 0), phasetransposed(j, k, 0));
+			comp1.fromPolar(magnitudestftoutr(j, k, 0), phasetransposed(j, k, 1));
+
+			stftl->bin(j).set(comp0);
+			stftr->bin(j).set(comp1);
+		}
+
+		stftl->inverse(bufferindexl00); //save inverse into buffer
+		stftr->inverse(bufferindexr00); //save inverse into buffer
+
+		bufferindexl00 += 512; //hop size
+		bufferindexr00 += 512; //hop size
+
+		//----------------------
+		for (int j = 0; j < stftl->numBins(); j++)
+		{
+			gam::Complex comp0;
+			gam::Complex comp1;
+
+			comp0.fromPolar(magnitudestftoutl(j, k, 1), phasetransposed(j, k, 0));
+			comp1.fromPolar(magnitudestftoutr(j, k, 1), phasetransposed(j, k, 1));
+
+			stftl->bin(j).set(comp0);
+			stftr->bin(j).set(comp1);
+		}
+
+		stftl->inverse(bufferindexl01); //save inverse into buffer
+		stftr->inverse(bufferindexr01); //save inverse into buffer
+
+		bufferindexl01 += 512; //hop size
+		bufferindexr01 += 512; //hop size
+
+		//----------------------
+		for (int j = 0; j < stftl->numBins(); j++)
+		{
+			gam::Complex comp0;
+			gam::Complex comp1;
+
+			comp0.fromPolar(magnitudestftoutl(j, k, 2), phasetransposed(j, k, 0));
+			comp1.fromPolar(magnitudestftoutr(j, k, 2), phasetransposed(j, k, 1));
+
+			stftl->bin(j).set(comp0);
+			stftr->bin(j).set(comp1);
+		}
+
+		stftl->inverse(bufferindexl02); //save inverse into buffer
+		stftr->inverse(bufferindexr02); //save inverse into buffer
+
+		bufferindexl02 += 512; //hop size
+		bufferindexr02 += 512; //hop size
+
+		//----------------------
 		for (int j = 0; j < stftl->numBins(); j++)
 		{
 			gam::Complex comp0;
@@ -222,23 +285,65 @@ int AudioVisualizer::predict(float* samples, int numchannels, float * bufflstart
 			stftr->bin(j).set(comp1);
 		}
 
-		stftl->inverse(bufferindexl); //save inverse into buffer
-		stftr->inverse(bufferindexr); //save inverse into buffer
+		stftl->inverse(bufferindexl03); //save inverse into buffer
+		stftr->inverse(bufferindexr03); //save inverse into buffer
 
-		bufferindexl += 512; //hop size
-		bufferindexr += 512; //hop size
-
+		bufferindexl03 += 512; //hop size
+		bufferindexr03 += 512; //hop size
 	}
 
-	std::cout << "prediction done..." << std::endl;
+	//std::cout << "prediction done..." << std::endl;
 
-	int buffersize = nframes * 512 + 2048; //adding the last window
+	int buffersize = nframes * 512 + 2048; //adding the last window   
 
-	for (int j = (buffersize - 1); j > (buffersize - 500); j--)
+	for (int j = (buffersize - 500); j < buffersize; j++)
 	{
-		if (!isnan(bufferindexl[j]) && visualbuffer->size() < 500) {
-			//std::cout << "here:" << bufferindexl[77000] << std::endl;
-			visualbuffer->push_back(bufferindexl[j]);
+		if (visualbuffer00->size() < 500)
+		{
+			if (!isnan(bufferindexl00[j])) {
+				//std::cout << "here:" << bufferindexl[j] << std::endl;
+				visualbuffer00->push_back(bufferindexl00[j]);
+			}
+			else
+			{
+				visualbuffer00->push_back(0.0);
+			}
+		}
+
+		if (visualbuffer01->size() < 500)
+		{
+			if (!isnan(bufferindexl01[j])) {
+				//std::cout << "here:" << bufferindexl[j] << std::endl;
+				visualbuffer01->push_back(bufferindexl01[j]);
+			}
+			else
+			{
+				visualbuffer01->push_back(0.0);
+			}
+		}
+
+		if (visualbuffer02->size() < 500)
+		{
+			if (!isnan(bufferindexl02[j])) {
+				//std::cout << "here:" << bufferindexl[j] << std::endl;
+				visualbuffer02->push_back(bufferindexl02[j]);
+			}
+			else
+			{
+				visualbuffer02->push_back(0.0);
+			}
+		}
+
+		if (visualbuffer03->size() < 500)
+		{
+			if (!isnan(bufferindexl03[j])) {
+				//std::cout << "here:" << bufferindexl[j] << std::endl;
+				visualbuffer03->push_back(bufferindexl03[j]);
+			}
+			else
+			{
+				visualbuffer03->push_back(0.0);
+			}
 		}
 	}
 	

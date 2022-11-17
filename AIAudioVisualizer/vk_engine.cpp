@@ -59,9 +59,9 @@ static int recordCallback(const void* inputBuffer, void* outputBuffer,
 		framesToCalc = framesLeft;
 
 		AudioVisualizer* aipredicter = (AudioVisualizer*)data->aipredicter;
-		aipredicter->predict(data->recordedSamples, 2, data->bufferpredictl, data->bufferpredictr, data->visualbuffer);
+		aipredicter->predict(data->recordedSamples, 2, data->bufferpredictl00, data->bufferpredictr00, data->bufferpredictl01, data->bufferpredictr01, data->bufferpredictl02, data->bufferpredictr02, data->bufferpredictl03, data->bufferpredictr03, data->visualbuffer00, data->visualbuffer01, data->visualbuffer02, data->visualbuffer03);
 		
-		////----Test wave out
+		////----Test wave out   
 		//AudioFile<float> audioFile;
 		//AudioFile<float>::AudioBuffer* waveconverted = (AudioFile<float>::AudioBuffer*)data->waveout;
 		//bool ok = audioFile.setAudioBuffer(*waveconverted);
@@ -188,7 +188,10 @@ void VulkanEngine::cleanup()
 		audioAI->freeMem();
 		delete audioAI;
 		free(audioData.recordedSamples);//freeing dynamic allocation
-		free(audioData.visualbuffer);//freeing dynamic allocation
+		free(audioData.visualbuffer00);//freeing dynamic allocation
+		free(audioData.visualbuffer01);//freeing dynamic allocation
+		free(audioData.visualbuffer02);//freeing dynamic allocation
+		free(audioData.visualbuffer03);//freeing dynamic allocation
 
 		int err = Pa_StopStream(stream);
 		if (err != paNoError) {
@@ -1479,12 +1482,15 @@ void VulkanEngine::draw_quad(VkCommandBuffer cmd)
 	_sceneParameters.ambientColor = { sin(framed),0,cos(framed),1 };
 	_sceneParameters.frame = framed;
 
-	if (audioData.visualbuffer->size() > 0)
+	if (audioData.visualbuffer00->size() > 0 && audioData.visualbuffer01->size() > 0 && audioData.visualbuffer02->size() > 0 && audioData.visualbuffer03->size() > 0)
 	{
-		_sceneParameters.audiodata01 = { audioData.visualbuffer->front(), 0, 0 , 0};
-		audioData.visualbuffer->pop_front();
+		_sceneParameters.audiodata01 = { audioData.visualbuffer00->front(), audioData.visualbuffer01->front(), audioData.visualbuffer02->front() , audioData.visualbuffer03->front() };
+		audioData.visualbuffer00->pop_front();
+		audioData.visualbuffer01->pop_front();
+		audioData.visualbuffer02->pop_front();
+		audioData.visualbuffer03->pop_front();
 	} 
-	//for (int j = 0; j < 50; j++) 
+	//for (int j = 0; j < 50; j++)
 	//{
 	//	if (!isnan(audioData.bufferpredictl[77000 - j])){
 	//		_sceneParameters.audiodata01 = { audioData.bufferpredictl[77000 - j], 0, 0 , 0 };
@@ -1695,7 +1701,7 @@ void VulkanEngine::init_scene()
 	RenderObject monkey;
 	monkey.mesh = get_mesh("monkey");
 	monkey.material = get_material("defaultmesh");
-	monkey.transformMatrix = glm::translate(glm::mat4{ 1.0 }, glm::vec3(0.0, 10.0, 0));
+	monkey.transformMatrix = glm::translate(glm::mat4{ 1.0 }, glm::vec3(0.0, 6.0, 1.0));
 
 	_renderables.push_back(monkey);
 
@@ -2107,10 +2113,13 @@ void VulkanEngine::init_sound()
 	logAI.AddLog("[%s] - %s %d\n", "info", "Number of devices =", numDevices);
 
 	audioData.devices = new std::vector<std::string>();
-	audioData.deviceselection = 1;//it must be 1 in my computer
-	audioData.visualbuffer = new std::deque<float>();
+	audioData.deviceselection = 2;//it must be 2 in my computer  
+	audioData.visualbuffer00 = new std::deque<float>();
+	audioData.visualbuffer01 = new std::deque<float>();
+	audioData.visualbuffer02 = new std::deque<float>();
+	audioData.visualbuffer03 = new std::deque<float>();
 
-	for (int i = 0; i < numDevices; i++)
+	for (int i = 0; i < numDevices; i++)    
 	{
 		std::cout << "------------------------------------------------------" << std::endl;
 		std::cout << "Device number: " << i << std::endl;
@@ -2171,19 +2180,49 @@ void VulkanEngine::init_sound()
 
 	audioAI->initSound(totalFrames); //sending number of samples per channel
 
-	bufferpredict = new AudioFile<float>::AudioBuffer();
-	bufferpredict->resize(2);
-	bufferpredict->at(0).resize(audioAI->getNumberOfFrames() * 512 + 2048); //number of frames plus hop size
-	bufferpredict->at(1).resize(audioAI->getNumberOfFrames() * 512 + 2048); //number of frames plus hop size
+	bufferpredict00 = new AudioFile<float>::AudioBuffer();
+	bufferpredict00->resize(2);
+	bufferpredict00->at(0).resize(audioAI->getNumberOfFrames() * 512 + 2048); //number of frames plus hop size
+	bufferpredict00->at(1).resize(audioAI->getNumberOfFrames() * 512 + 2048); //number of frames plus hop size
+
+	bufferpredict01 = new AudioFile<float>::AudioBuffer();
+	bufferpredict01->resize(2);
+	bufferpredict01->at(0).resize(audioAI->getNumberOfFrames() * 512 + 2048); //number of frames plus hop size
+	bufferpredict01->at(1).resize(audioAI->getNumberOfFrames() * 512 + 2048); //number of frames plus hop size
+
+	bufferpredict02 = new AudioFile<float>::AudioBuffer();
+	bufferpredict02->resize(2);
+	bufferpredict02->at(0).resize(audioAI->getNumberOfFrames() * 512 + 2048); //number of frames plus hop size
+	bufferpredict02->at(1).resize(audioAI->getNumberOfFrames() * 512 + 2048); //number of frames plus hop size
+
+	bufferpredict03 = new AudioFile<float>::AudioBuffer();
+	bufferpredict03->resize(2);
+	bufferpredict03->at(0).resize(audioAI->getNumberOfFrames() * 512 + 2048); //number of frames plus hop size
+	bufferpredict03->at(1).resize(audioAI->getNumberOfFrames() * 512 + 2048); //number of frames plus hop size
 
 
-	float* bufferindexl = &bufferpredict->at(0)[0];
-	float* bufferindexr = &bufferpredict->at(1)[0];
+	float* bufferindexl00 = &bufferpredict00->at(0)[0];
+	float* bufferindexr00 = &bufferpredict00->at(1)[0];
+
+	float* bufferindexl01 = &bufferpredict01->at(0)[0];
+	float* bufferindexr01 = &bufferpredict01->at(1)[0];
+
+	float* bufferindexl02 = &bufferpredict02->at(0)[0];
+	float* bufferindexr02 = &bufferpredict02->at(1)[0];
+
+	float* bufferindexl03 = &bufferpredict03->at(0)[0];
+	float* bufferindexr03 = &bufferpredict03->at(1)[0];
 
 	audioData.aipredicter = audioAI;
-	audioData.bufferpredictl = bufferindexl;
-	audioData.bufferpredictr = bufferindexr;
-	audioData.waveout = bufferpredict;
+	audioData.bufferpredictl00 = bufferindexl00;
+	audioData.bufferpredictr00 = bufferindexr00;
+	audioData.bufferpredictl01 = bufferindexl01;
+	audioData.bufferpredictr01 = bufferindexr01;
+	audioData.bufferpredictl02 = bufferindexl02;
+	audioData.bufferpredictr02 = bufferindexr02;
+	audioData.bufferpredictl03 = bufferindexl03;
+	audioData.bufferpredictr03 = bufferindexr03;
+	audioData.waveout = bufferpredict00;
 
 	err = Pa_OpenStream(&stream,
 		&inputParameters,          // input parameters

@@ -144,7 +144,10 @@ public:
 	//paTestData data;//this will be global
 	PaStream* stream;
 	AudioVisualizer* audioAI;
-	AudioFile<float>::AudioBuffer* bufferpredict;
+	AudioFile<float>::AudioBuffer* bufferpredict00;
+	AudioFile<float>::AudioBuffer* bufferpredict01;
+	AudioFile<float>::AudioBuffer* bufferpredict02;
+	AudioFile<float>::AudioBuffer* bufferpredict03;
 	//-----------Audio Section--------------
 
 	bool _isInitialized{ false };
