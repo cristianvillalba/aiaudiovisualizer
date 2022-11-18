@@ -48,7 +48,7 @@ void main()
 	wavepoint = smoothstep( -0.25, 0.25, sceneData.audiodata01.y) - 1.0f;
 
 	coord = vec2(fragCoord.x, fragCoord.y + wavepoint);
-	dis = distance(coord, vec2(-0.1f, 5.0f));
+	dis = distance(coord, vec2(-0.1f, 3.0f));
 	
 	if (dis < 0.2){
 		finalcolor = vec3(0.0f, 1.0f,0.0f);
@@ -57,7 +57,7 @@ void main()
 	wavepoint = smoothstep( -0.25, 0.25, sceneData.audiodata01.z) - 1.0f;
 
 	coord = vec2(fragCoord.x, fragCoord.y + wavepoint);
-	dis = distance(coord, vec2(-0.1f, 4.0f));
+	dis = distance(coord, vec2(-0.1f, 0.0f));
 	
 	if (dis < 0.2){
 		finalcolor = vec3(0.0f, 0.0f,1.0f);
@@ -66,7 +66,7 @@ void main()
 	wavepoint = smoothstep( -0.25, 0.25, sceneData.audiodata01.w) - 1.0f;
 
 	coord = vec2(fragCoord.x, fragCoord.y + wavepoint);
-	dis = distance(coord, vec2(-0.1f, 3.0f));
+	dis = distance(coord, vec2(-0.1f, -3.0f));
 	
 	if (dis < 0.2){
 		finalcolor = vec3(0.0f, 1.0f,1.0f);

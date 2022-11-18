@@ -2173,7 +2173,7 @@ void VulkanEngine::init_sound()
 
 	memset(&inputParameters, 0, sizeof(inputParameters));//not necessary if you are filling in all the fields
 	inputParameters.channelCount = NUM_CHANNELS;
-	inputParameters.device = 0; //realtek audio capture - it must be 2 in my computer
+	inputParameters.device = 2; //realtek audio capture - it must be 2 in my computer
 	inputParameters.sampleFormat = PA_SAMPLE_TYPE;
 	inputParameters.suggestedLatency = Pa_GetDeviceInfo(15)->defaultHighInputLatency;
 	inputParameters.hostApiSpecificStreamInfo = NULL; //See you specific host's API docs for info on using this field

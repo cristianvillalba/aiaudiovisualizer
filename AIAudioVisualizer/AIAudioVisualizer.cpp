@@ -103,13 +103,14 @@ int AudioVisualizer::predict(float* samples, int numchannels, float* bufflstart0
 	size_t size = 1 * 1025 * 21 * 2; //final size of tensor input
 	std::vector<float> _data(size, 0.0f);    // make room for tensor and initialize them to 0
 
-	for (int i = 0; i < 512; i++)
+	/*for (int i = 0; i < 512; i++)
 	{
 		stftl->operator()(samples[i * numchannels]);
 		stftr->operator()(samples[(i * numchannels) + 1]);
-	}
+	}*/
 
-	for (int i = 512; i < numSamples; i++)
+	//for (int i = 512; i < numSamples; i++)  
+	for (int i = 0; i < numSamples; i++)
 	{
 		float currentSample = samples[i * numchannels];
 
@@ -296,7 +297,9 @@ int AudioVisualizer::predict(float* samples, int numchannels, float* bufflstart0
 
 	int buffersize = nframes * 512 + 2048; //adding the last window   
 
-	for (int j = (buffersize - 500); j < buffersize; j++)
+	
+	//for (int j = 0; j < (buffersize - 3910); j++) //worthless
+	for (int j = (buffersize - 3910); j < buffersize; j++)
 	{
 		if (visualbuffer00->size() < 500)
 		{
