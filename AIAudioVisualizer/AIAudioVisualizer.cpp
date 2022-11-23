@@ -2,6 +2,7 @@
 #include <vk_engine.h>
 
 VulkanEngine engine;
+std::mutex BigMutex; //defining big mutex class
 
 int main(int argc, char* argv[])
 {
@@ -301,6 +302,7 @@ int AudioVisualizer::predict(float* samples, int numchannels, float* bufflstart0
 	//for (int j = 0; j < (buffersize - 3910); j++) //worthless
 	for (int j = (buffersize - 3910); j < buffersize; j++)
 	{
+		std::lock_guard<std::mutex> lockGuard(BigMutex);
 		if (visualbuffer00->size() < 500)
 		{
 			if (!isnan(bufferindexl00[j]) && abs(bufferindexl00[j]) <= 1.0f) {

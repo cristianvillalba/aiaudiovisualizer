@@ -1487,6 +1487,7 @@ void VulkanEngine::draw_quad(VkCommandBuffer cmd)
 
 	if (audioData.visualbuffer00->size() > 0 && audioData.visualbuffer01->size() > 0 && audioData.visualbuffer02->size() > 0 && audioData.visualbuffer03->size() > 0)
 	{
+		std::lock_guard<std::mutex> lockGuard(BigMutex);
 		_sceneParameters.audiodata01 = { audioData.visualbuffer00->front(), audioData.visualbuffer01->front(), audioData.visualbuffer02->front() , audioData.visualbuffer03->front() };
 		
 		//printf("reading 01:%.8f\n", audioData.visualbuffer00->front());
@@ -2149,7 +2150,7 @@ void VulkanEngine::init_sound()
 		std::cout << "Default high input latency  = " << deviceInfo->defaultHighInputLatency << std::endl;
 		std::cout << "Default high output latency = " << deviceInfo->defaultHighOutputLatency << std::endl;
 
-		logAI.AddLog("[%s] - %s %s\n", "info", "Name =", wideName);
+		logAI.AddLog("[%s] - %s %s\n", "info", "Name =", deviceInfo->name);
 		logAI.AddLog("[%s] - %s %s\n", "info", "Host API =", Pa_GetHostApiInfo(deviceInfo->hostApi)->name);
 		logAI.AddLog("[%s] - %s %d\n", "info", "Max inputs =", deviceInfo->maxInputChannels);
 		logAI.AddLog("[%s] - %s %d\n", "info", "Max outputs =", deviceInfo->maxOutputChannels);
@@ -2300,14 +2301,15 @@ void VulkanEngine::SwitchDevice(int device)
 	inputParameters.suggestedLatency = Pa_GetDeviceInfo(device)->defaultHighInputLatency;
 	inputParameters.hostApiSpecificStreamInfo = NULL; //See you specific host's API docs for info on using this field
 
-	err = Pa_StopStream(stream);
+	//err = Pa_StopStream(stream);
+	err = Pa_AbortStream(stream);
 	if (err != paNoError) {
-		std::cout << "PortAudio error stop: " << Pa_GetErrorText(err) << std::endl;
+		std::cout << "PortAudio error Abort: " << Pa_GetErrorText(err) << std::endl;
 	}
 
 	err = Pa_CloseStream(stream);
 	if (err != paNoError) {
-		std::cout << "PortAudio error close: " << Pa_GetErrorText(err) << std::endl;
+		std::cout << "PortAudio error Close: " << Pa_GetErrorText(err) << std::endl;
 	}
 
 	err = Pa_OpenStream(&stream,
@@ -2318,4 +2320,13 @@ void VulkanEngine::SwitchDevice(int device)
 		paNoFlag,
 		recordCallback, // this is your callback function
 		&audioData);
+
+	if (err != paNoError) {
+		std::cout << "PortAudio error Open stream: " << Pa_GetErrorText(err) << std::endl;
+	}
+
+	err = Pa_StartStream(stream);
+	if (err != paNoError) {
+		std::cout << "PortAudio Error while start stream" << std::endl;
+	}
 }
