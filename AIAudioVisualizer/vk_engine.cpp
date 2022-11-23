@@ -431,6 +431,9 @@ void VulkanEngine::run()
 			}
 		}
 
+		//processing sound with Blocking IO
+		//processSound();
+
 		//imgui new frame
 		ImGui_ImplVulkan_NewFrame();
 		ImGui_ImplSDL2_NewFrame(_window);
@@ -1485,12 +1488,17 @@ void VulkanEngine::draw_quad(VkCommandBuffer cmd)
 	if (audioData.visualbuffer00->size() > 0 && audioData.visualbuffer01->size() > 0 && audioData.visualbuffer02->size() > 0 && audioData.visualbuffer03->size() > 0)
 	{
 		_sceneParameters.audiodata01 = { audioData.visualbuffer00->front(), audioData.visualbuffer01->front(), audioData.visualbuffer02->front() , audioData.visualbuffer03->front() };
+		
+		//printf("reading 01:%.8f\n", audioData.visualbuffer00->front());
+		//printf("reading 02:%.8f\n", audioData.visualbuffer01->front());
+		//printf("reading 03:%.8f\n", audioData.visualbuffer02->front());
+		//printf("reading 04:%.8f\n", audioData.visualbuffer03->front());   
 		audioData.visualbuffer00->pop_front();
 		audioData.visualbuffer01->pop_front();
 		audioData.visualbuffer02->pop_front();
 		audioData.visualbuffer03->pop_front();
 	} 
-	//for (int j = 0; j < 50; j++)
+	//for (int j = 0; j < 50; j++)   
 	//{
 	//	if (!isnan(audioData.bufferpredictl[77000 - j])){
 	//		_sceneParameters.audiodata01 = { audioData.bufferpredictl[77000 - j], 0, 0 , 0 };
@@ -2162,7 +2170,8 @@ void VulkanEngine::init_sound()
 	audioData.frameIndex = 0;
 	numSamples = totalFrames * NUM_CHANNELS;
 	numBytes = numSamples * sizeof(SAMPLE);
-	audioData.recordedSamples = (SAMPLE*)malloc(numBytes); /* From now on, recordedSamples is initialised. */
+	audioData.recordedSamples = (SAMPLE*)malloc(numBytes); /* for callback buffer */
+
 	if (audioData.recordedSamples == NULL)
 	{
 		std::cout << "Could not allocate record array" << std::endl;
@@ -2170,12 +2179,22 @@ void VulkanEngine::init_sound()
 	}
 	for (i = 0; i < numSamples; i++) audioData.recordedSamples[i] = 0;
 	
+	//numBytes = FRAMES_PER_BUFFER * NUM_CHANNELS * sizeof(SAMPLE);/* for block io */
+	//audioData.recordedSamples = (SAMPLE*)malloc(numBytes);/* for block io */
+	//if (audioData.recordedSamples == NULL)
+	//{
+	//	std::cout << "Could not allocate record array" << std::endl;
+	//	abort();
+	//}
+	//for (i = 0; i < (FRAMES_PER_BUFFER * NUM_CHANNELS); i++) audioData.recordedSamples[i] = 0;
+
+
 
 	memset(&inputParameters, 0, sizeof(inputParameters));//not necessary if you are filling in all the fields
 	inputParameters.channelCount = NUM_CHANNELS;
 	inputParameters.device = 2; //realtek audio capture - it must be 2 in my computer
 	inputParameters.sampleFormat = PA_SAMPLE_TYPE;
-	inputParameters.suggestedLatency = Pa_GetDeviceInfo(15)->defaultHighInputLatency;
+	inputParameters.suggestedLatency = Pa_GetDeviceInfo(2)->defaultHighInputLatency;
 	inputParameters.hostApiSpecificStreamInfo = NULL; //See you specific host's API docs for info on using this field
 
 	audioAI->initSound(totalFrames); //sending number of samples per channel
@@ -2224,6 +2243,7 @@ void VulkanEngine::init_sound()
 	audioData.bufferpredictr03 = bufferindexr03;
 	audioData.waveout = bufferpredict00;
 
+	//With Callbacks
 	err = Pa_OpenStream(&stream,
 		&inputParameters,          // input parameters
 		NULL,          // output parameters
@@ -2232,6 +2252,17 @@ void VulkanEngine::init_sound()
 		paNoFlag,
 		recordCallback, // this is your callback function
 		&audioData);
+
+	////Blocking I/O
+	//err = Pa_OpenStream(&stream,
+	//	&inputParameters,          // input parameters
+	//	NULL,          // output parameters
+	//	SAMPLE_RATE,
+	//	FRAMES_PER_BUFFER,        // frames per buffer
+	//	paClipOff,
+	//	NULL, // this is your callback function
+	//	NULL);
+
 	
 	if (err != paNoError) {
 		std::cout << "PortAudio Error while open stream: " << Pa_GetErrorText(err) << std::endl;
@@ -2247,6 +2278,16 @@ void VulkanEngine::init_sound()
 
 }
 
+void VulkanEngine::processSound()
+{
+	PaError err;
+	err = Pa_ReadStream(stream, audioData.recordedSamples, FRAMES_PER_BUFFER);
+
+	if (err != paNoError) {
+		std::cout << "reading Audio error: " << Pa_GetErrorText(err) << std::endl;
+	}
+}
+
 void VulkanEngine::SwitchDevice(int device)
 {
 	PaStreamParameters inputParameters;
@@ -2256,7 +2297,7 @@ void VulkanEngine::SwitchDevice(int device)
 	inputParameters.channelCount = NUM_CHANNELS;
 	inputParameters.device = device; //device from outside
 	inputParameters.sampleFormat = PA_SAMPLE_TYPE;
-	inputParameters.suggestedLatency = Pa_GetDeviceInfo(15)->defaultHighInputLatency;
+	inputParameters.suggestedLatency = Pa_GetDeviceInfo(device)->defaultHighInputLatency;
 	inputParameters.hostApiSpecificStreamInfo = NULL; //See you specific host's API docs for info on using this field
 
 	err = Pa_StopStream(stream);

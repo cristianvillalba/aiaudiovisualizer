@@ -303,49 +303,49 @@ int AudioVisualizer::predict(float* samples, int numchannels, float* bufflstart0
 	{
 		if (visualbuffer00->size() < 500)
 		{
-			if (!isnan(bufferindexl00[j])) {
-				//std::cout << "here:" << bufferindexl[j] << std::endl;
+			if (!isnan(bufferindexl00[j]) && abs(bufferindexl00[j]) <= 1.0f) {
+				//printf("writing:%.8f\n", bufferindexl00[j]);
 				visualbuffer00->push_back(bufferindexl00[j]);
 			}
 			else
 			{
-				visualbuffer00->push_back(0.0);
+				//visualbuffer00->push_back(0.0);
 			}
 		}
 
 		if (visualbuffer01->size() < 500)
 		{
-			if (!isnan(bufferindexl01[j])) {
-				//std::cout << "here:" << bufferindexl[j] << std::endl;
+			if (!isnan(bufferindexl01[j]) && abs(bufferindexl01[j]) <= 1.0f) {
+				//printf("writing:%.8f\n", bufferindexl01[j]);
 				visualbuffer01->push_back(bufferindexl01[j]);
 			}
 			else
 			{
-				visualbuffer01->push_back(0.0);
+				//visualbuffer01->push_back(0.0);
 			}
 		}
 
 		if (visualbuffer02->size() < 500)
 		{
-			if (!isnan(bufferindexl02[j])) {
-				//std::cout << "here:" << bufferindexl[j] << std::endl;
+			if (!isnan(bufferindexl02[j]) && abs(bufferindexl02[j]) <= 1.0f) {
+				//printf("writing:%.8f\n", bufferindexl02[j]);
 				visualbuffer02->push_back(bufferindexl02[j]);
 			}
 			else
 			{
-				visualbuffer02->push_back(0.0);
+				//visualbuffer02->push_back(0.0);
 			}
 		}
 
 		if (visualbuffer03->size() < 500)
 		{
-			if (!isnan(bufferindexl03[j])) {
-				//std::cout << "here:" << bufferindexl[j] << std::endl;
+			if (!isnan(bufferindexl03[j]) && abs(bufferindexl03[j]) <= 1.0f) {
+				//printf("writing:%.8f\n", bufferindexl03[j]);
 				visualbuffer03->push_back(bufferindexl03[j]);
 			}
 			else
 			{
-				visualbuffer03->push_back(0.0);
+				//visualbuffer03->push_back(0.0);
 			}
 		}
 	}

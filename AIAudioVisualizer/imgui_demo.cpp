@@ -8019,26 +8019,28 @@ static void ShowAIAppLog(bool* p_open)
 
     // Generate samples and plot them
     float samples[100];
-    int startingframes = audioData.visualoffset;
+    //int startingframes = audioData.visualoffset;
+    int startingframes = audioData.maxFrameIndex - 200;
     for (int n = 0; n < 100; n++) {
         samples[n] = audioData.recordedSamples[startingframes];
         startingframes += 2;
     }
     ImGui::PlotLines("Left samples", samples, 100);
 
-    startingframes = audioData.visualoffset + 1;
+    //startingframes = audioData.visualoffset + 1;
+    startingframes = audioData.maxFrameIndex - 200 + 1;
     for (int n = 0; n < 100; n++) {
         samples[n] = audioData.recordedSamples[startingframes];
         startingframes += 2;
     }
     ImGui::PlotLines("Right samples", samples, 100);
 
-    audioData.visualoffset += 2;
+    //audioData.visualoffset += 2;
 
-    if (audioData.visualoffset == audioData.maxFrameIndex - 200)
-    {
-        audioData.visualoffset = 0;
-    }
+    //if (audioData.visualoffset == audioData.maxFrameIndex - 200)
+    //{
+    //    audioData.visualoffset = 0;
+    //}
 
     ImGui::End();
 

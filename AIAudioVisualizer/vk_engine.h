@@ -300,6 +300,8 @@ private:
 	void init_imgui();
 
 	void init_sound();
+
+	void processSound();
 };
 
 extern VulkanEngine engine;
