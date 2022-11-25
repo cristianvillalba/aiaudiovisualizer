@@ -305,5 +305,4 @@ private:
 };
 
 extern VulkanEngine engine; //instance defined in AIAudioVisualizer.cpp
-extern std::mutex BigMutex; //instance defined in AIAudioVisualizer.cpp
 #endif

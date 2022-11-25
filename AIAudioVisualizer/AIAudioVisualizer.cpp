@@ -2,7 +2,6 @@
 #include <vk_engine.h>
 
 VulkanEngine engine;
-std::mutex BigMutex; //defining big mutex class
 
 int main(int argc, char* argv[])
 {
@@ -98,7 +97,7 @@ int AudioVisualizer::initSound(int samplesperchannel)
 	return 0;
 }
 
-int AudioVisualizer::predict(float* samples, int numchannels, float* bufflstart00, float* buffrstart00, float* bufflstart01, float* buffrstart01, float* bufflstart02, float* buffrstart02, float* bufflstart03, float* buffrstart03, std::deque<float>* visualbuffer00, std::deque<float>* visualbuffer01, std::deque<float>* visualbuffer02, std::deque<float>* visualbuffer03)
+int AudioVisualizer::predict(float* samples, int numchannels)
 {
 	currentFrame = 0;
 	size_t size = 1 * 1025 * 21 * 2; //final size of tensor input
@@ -203,15 +202,39 @@ int AudioVisualizer::predict(float* samples, int numchannels, float* bufflstart0
 	xt::xarray<double> magnitudestftoutl = xt::view(sources, xt::all(), xt::all(), 0, xt::all());
 	xt::xarray<double> magnitudestftoutr = xt::view(sources, xt::all(), xt::all(), 1, xt::all());
 
+	AudioFile<float>::AudioBuffer bufferpredict00;
+	bufferpredict00.resize(2);
+	bufferpredict00[0].resize(getNumberOfFrames() * 512 + 2048); //number of frames plus hop size
+	bufferpredict00[1].resize(getNumberOfFrames() * 512 + 2048); //number of frames plus hop size
+
+	AudioFile<float>::AudioBuffer bufferpredict01;
+	bufferpredict01.resize(2);
+	bufferpredict01[0].resize(getNumberOfFrames() * 512 + 2048); //number of frames plus hop size
+	bufferpredict01[1].resize(getNumberOfFrames() * 512 + 2048); //number of frames plus hop size
+
+	AudioFile<float>::AudioBuffer bufferpredict02;
+	bufferpredict02.resize(2);
+	bufferpredict02[0].resize(getNumberOfFrames() * 512 + 2048); //number of frames plus hop size
+	bufferpredict02[1].resize(getNumberOfFrames() * 512 + 2048); //number of frames plus hop size
+
+	AudioFile<float>::AudioBuffer bufferpredict03;
+	bufferpredict03.resize(2);
+	bufferpredict03[0].resize(getNumberOfFrames() * 512 + 2048); //number of frames plus hop size
+	bufferpredict03[1].resize(getNumberOfFrames() * 512 + 2048); //number of frames plus hop size
+
 	//-----mix step
-	float* bufferindexl00 = bufflstart00;
-	float* bufferindexr00 = buffrstart00;
-	float* bufferindexl01 = bufflstart01;
-	float* bufferindexr01 = buffrstart01;
-	float* bufferindexl02 = bufflstart02;
-	float* bufferindexr02 = buffrstart02;
-	float* bufferindexl03 = bufflstart03;
-	float* bufferindexr03 = buffrstart03;
+	float* bufferindexl00 = &bufferpredict00[0][0];
+	float* bufferindexr00 = &bufferpredict00[1][0];
+
+	float* bufferindexl01 = &bufferpredict01[0][0];
+	float* bufferindexr01 = &bufferpredict01[1][0];
+
+	float* bufferindexl02 = &bufferpredict02[0][0];
+	float* bufferindexr02 = &bufferpredict02[1][0];
+
+	float* bufferindexl03 = &bufferpredict03[0][0];
+	float* bufferindexr03 = &bufferpredict03[1][0];
+
 
 	stftl->inverseWindowing(false);
 	stftr->inverseWindowing(false);
@@ -300,56 +323,13 @@ int AudioVisualizer::predict(float* samples, int numchannels, float* bufflstart0
 
 	
 	//for (int j = 0; j < (buffersize - 3910); j++) //worthless
-	for (int j = (buffersize - 3910); j < buffersize; j++)
+	//for (int j = (buffersize - 3910); j < buffersize; j++)
+	for (int j = (int)(buffersize / 2); j < buffersize; j++) //worthless
 	{
-		std::lock_guard<std::mutex> lockGuard(BigMutex);
-		if (visualbuffer00->size() < 500)
-		{
-			if (!isnan(bufferindexl00[j]) && abs(bufferindexl00[j]) <= 1.0f) {
-				//printf("writing:%.8f\n", bufferindexl00[j]);
-				visualbuffer00->push_back(bufferindexl00[j]);
-			}
-			else
-			{
-				//visualbuffer00->push_back(0.0);
-			}
-		}
-
-		if (visualbuffer01->size() < 500)
-		{
-			if (!isnan(bufferindexl01[j]) && abs(bufferindexl01[j]) <= 1.0f) {
-				//printf("writing:%.8f\n", bufferindexl01[j]);
-				visualbuffer01->push_back(bufferindexl01[j]);
-			}
-			else
-			{
-				//visualbuffer01->push_back(0.0);
-			}
-		}
-
-		if (visualbuffer02->size() < 500)
-		{
-			if (!isnan(bufferindexl02[j]) && abs(bufferindexl02[j]) <= 1.0f) {
-				//printf("writing:%.8f\n", bufferindexl02[j]);
-				visualbuffer02->push_back(bufferindexl02[j]);
-			}
-			else
-			{
-				//visualbuffer02->push_back(0.0);
-			}
-		}
-
-		if (visualbuffer03->size() < 500)
-		{
-			if (!isnan(bufferindexl03[j]) && abs(bufferindexl03[j]) <= 1.0f) {
-				//printf("writing:%.8f\n", bufferindexl03[j]);
-				visualbuffer03->push_back(bufferindexl03[j]);
-			}
-			else
-			{
-				//visualbuffer03->push_back(0.0);
-			}
-		}
+		visualDataWrapper.setBuffer00Val(bufferpredict00[0][j], 2048);
+		visualDataWrapper.setBuffer01Val(bufferpredict01[0][j], 2048);
+		visualDataWrapper.setBuffer02Val(bufferpredict02[0][j], 2048);
+		visualDataWrapper.setBuffer03Val(bufferpredict03[0][j], 2048);
 	}
 	
 	return  0;
