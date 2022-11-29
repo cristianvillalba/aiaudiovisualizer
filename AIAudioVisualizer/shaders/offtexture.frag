@@ -22,13 +22,54 @@ layout(set = 0, binding = 1) uniform  SceneData{
 
 layout(set = 2, binding = 0) uniform sampler2D tex1;
 
+float getLevel(float x, int type) {
+	if (type == 0)
+	{
+		return sceneData.audiodata01.x;
+	}
+	if (type == 1)
+	{
+		return sceneData.audiodata01.y;
+	}
+	if (type == 2)
+	{
+		return sceneData.audiodata01.z;
+	}
+	if (type == 3)
+	{
+		return sceneData.audiodata01.w;
+	}
+}
+
+float getPitch(float freq, int octave, int type){
+   return getLevel(pow(2.0, float(octave)) * freq / 12000.0, type);
+}
+
+float logX(float x, float a, float c){
+   return 1.0 / (exp(-a*(x-c)) + 1.0);
+}
+
+float logisticAmp(float amp){
+   float c = 1.0 - (0.25);
+   float a = 20.0 * (1.0 - 0.5);  
+   a = 20.;   
+   return (logX(amp, a, c) - logX(0.0, a, c)) / (logX(1.0, a, c) - logX(0.0, a, c));
+}
+
+float getAudioIntensityAt(float x, int type) {
+    x = abs(fract(x));
+    float freq = pow(2., x*3.) * 261.;
+    return logisticAmp(getPitch(freq, 1, type));
+}
+
 void main() 
 {	
 	//vec2 coord = vec2(fragCoord.x, fragCoord.y + sin(sceneData.frame * 5.0f));
 	//vec2 coord = vec2(fragCoord.x, fragCoord.y + sceneData.audiodata01.x * 1000.0f);
 	
-	float wavepoint = smoothstep( -0.5, 0.5, sceneData.audiodata01.x) - 1.0f;
+	float wavepoint = smoothstep( 0.0, 0.00001, sceneData.audiodata01.x) - 1.0f;
 	//float wavepoint = step(0.0f, abs(sceneData.audiodata01.x)) - 1.0f;
+	//float wavepoint = getAudioIntensityAt(0.3, 0);
 
 	vec2 coord = vec2(fragCoord.x, fragCoord.y + wavepoint);
 	float dis = distance(coord, vec2(-0.1f, 6.0f));
@@ -46,7 +87,8 @@ void main()
 		finalcolor = vec3(1.0f, 0.0f,0.0f);
 	}
 
-	wavepoint = smoothstep( -0.5, 0.5, sceneData.audiodata01.y) - 1.0f;
+	wavepoint = smoothstep( 0.0, 0.00001, sceneData.audiodata01.y) - 1.0f;
+	//wavepoint = getAudioIntensityAt(0.4, 1);
 
 	coord = vec2(fragCoord.x, fragCoord.y + wavepoint);
 	dis = distance(coord, vec2(-0.1f, 3.0f));
@@ -55,7 +97,8 @@ void main()
 		finalcolor = vec3(0.0f, 1.0f,0.0f);
 	}
 
-	wavepoint = smoothstep( -0.5, 0.5, sceneData.audiodata01.z) - 1.0f;
+	wavepoint = smoothstep( 0.0, 0.00001, sceneData.audiodata01.z) - 1.0f;
+	//wavepoint = getAudioIntensityAt(0.5, 2);
 
 	coord = vec2(fragCoord.x, fragCoord.y + wavepoint);
 	dis = distance(coord, vec2(-0.1f, 0.0f));
@@ -64,7 +107,8 @@ void main()
 		finalcolor = vec3(0.0f, 0.0f,1.0f);
 	}
 
-	wavepoint = smoothstep( -0.5, 0.5, sceneData.audiodata01.w) - 1.0f;
+	wavepoint = smoothstep( 0.0, 0.00001, sceneData.audiodata01.w) - 1.0f;
+	//wavepoint = getAudioIntensityAt(0.7, 3);
 
 	coord = vec2(fragCoord.x, fragCoord.y + wavepoint);
 	dis = distance(coord, vec2(-0.1f, -3.0f));

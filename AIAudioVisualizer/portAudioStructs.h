@@ -8,7 +8,7 @@
 
 #define SAMPLE_RATE  (44100)
 #define FRAMES_PER_BUFFER (512)
-#define NUM_SECONDS     (0.3)
+#define NUM_SECONDS     (0.4)
 #define NUM_CHANNELS    (2)
 /* #define DITHER_FLAG     (paDitherOff) */
 #define DITHER_FLAG     (0) /**/
@@ -42,6 +42,11 @@ public:
 	std::deque<float> visualbuffer01;
 	std::deque<float> visualbuffer02;
 	std::deque<float> visualbuffer03;
+
+	std::deque<float> visualbufferfft00;
+	std::deque<float> visualbufferfft01;
+	std::deque<float> visualbufferfft02;
+	std::deque<float> visualbufferfft03;
 };
 
 class VisualDataWrapper
@@ -82,6 +87,38 @@ public:
 		return size;
 	}
 
+	int getBufferFFT00Size()
+	{
+		std::lock_guard<std::mutex> lock(m);
+		int size = visualData.visualbufferfft00.size();
+
+		return size;
+	}
+
+	int getBufferFFT01Size()
+	{
+		std::lock_guard<std::mutex> lock(m);
+		int size = visualData.visualbufferfft01.size();
+
+		return size;
+	}
+
+	int getBufferFFT02Size()
+	{
+		std::lock_guard<std::mutex> lock(m);
+		int size = visualData.visualbufferfft02.size();
+
+		return size;
+	}
+
+	int getBufferFFT03Size()
+	{
+		std::lock_guard<std::mutex> lock(m);
+		int size = visualData.visualbufferfft03.size();
+
+		return size;
+	}
+
 	float getBuffer00Val()
 	{
 		std::lock_guard<std::mutex> lock(m);
@@ -114,6 +151,42 @@ public:
 		std::lock_guard<std::mutex> lock(m);
 		float val = visualData.visualbuffer03.front();
 		visualData.visualbuffer03.pop_front();
+		//printf("reading04:%.8f\n", val);
+		return val;
+	}
+
+	float getBufferFFT00Val()
+	{
+		std::lock_guard<std::mutex> lock(m);
+		float val = visualData.visualbufferfft00.front();
+		visualData.visualbufferfft00.pop_front();
+		//printf("reading01:%.8f\n", val);
+		return val;
+	}
+
+	float getBufferFFT01Val()
+	{
+		std::lock_guard<std::mutex> lock(m);
+		float val = visualData.visualbufferfft01.front();
+		visualData.visualbufferfft01.pop_front();
+		//printf("reading02:%.8f\n", val);
+		return val;
+	}
+
+	float getBufferFFT02Val()
+	{
+		std::lock_guard<std::mutex> lock(m);
+		float val = visualData.visualbufferfft02.front();
+		visualData.visualbufferfft02.pop_front();
+		//printf("reading03:%.8f\n", val);
+		return val;
+	}
+
+	float getBufferFFT03Val()
+	{
+		std::lock_guard<std::mutex> lock(m);
+		float val = visualData.visualbufferfft03.front();
+		visualData.visualbufferfft03.pop_front();
 		//printf("reading04:%.8f\n", val);
 		return val;
 	}
@@ -151,6 +224,42 @@ public:
 		if (!isnan(val) && abs(val) <= 1.0f && visualData.visualbuffer03.size() < maxbuff) {
 			//printf("writing:%.8f\n", val);
 			visualData.visualbuffer03.push_back(val);
+		}
+	}
+
+	void setBufferFFT00Val(float val, int maxbuff)
+	{
+		std::lock_guard<std::mutex> lock(m);
+		if (!isnan(val) && visualData.visualbufferfft00.size() < maxbuff) {
+			//printf("writing:%.8f\n", val);
+			visualData.visualbufferfft00.push_back(val);
+		}
+	}
+
+	void setBufferFFT01Val(float val, int maxbuff)
+	{
+		std::lock_guard<std::mutex> lock(m);
+		if (!isnan(val) && visualData.visualbufferfft01.size() < maxbuff) {
+			//printf("writing:%.8f\n", val);
+			visualData.visualbufferfft01.push_back(val);
+		}
+	}
+
+	void setBufferFFT02Val(float val, int maxbuff)
+	{
+		std::lock_guard<std::mutex> lock(m);
+		if (!isnan(val) && visualData.visualbufferfft02.size() < maxbuff) {
+			//printf("writing:%.8f\n", val);
+			visualData.visualbufferfft02.push_back(val);
+		}
+	}
+
+	void setBufferFFT03Val(float val, int maxbuff)
+	{
+		std::lock_guard<std::mutex> lock(m);
+		if (!isnan(val) && visualData.visualbufferfft03.size() < maxbuff) {
+			//printf("writing:%.8f\n", val);
+			visualData.visualbufferfft03.push_back(val);
 		}
 	}
 };

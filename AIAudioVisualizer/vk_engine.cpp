@@ -1482,13 +1482,18 @@ void VulkanEngine::draw_quad(VkCommandBuffer cmd)
 	_sceneParameters.ambientColor = { sin(framed),0,cos(framed),1 };
 	_sceneParameters.frame = framed;
 
-	if (visualDataWrapper.getBuffer00Size() > 0 && visualDataWrapper.getBuffer01Size() > 0 && visualDataWrapper.getBuffer02Size() > 0 && visualDataWrapper.getBuffer03Size() > 0)
+	if (visualDataWrapper.getBufferFFT00Size() > 0 && visualDataWrapper.getBufferFFT01Size() > 0 && visualDataWrapper.getBufferFFT02Size() > 0 && visualDataWrapper.getBufferFFT03Size() > 0)
 	{
-		float x = visualDataWrapper.getBuffer00Val();
+		/*float x = visualDataWrapper.getBuffer00Val();
 		float y = visualDataWrapper.getBuffer01Val();
 		float z = visualDataWrapper.getBuffer02Val();
-		float w = visualDataWrapper.getBuffer03Val();
-		_sceneParameters.audiodata01 = { x, y, z , w };
+		float w = visualDataWrapper.getBuffer03Val();*/
+
+		float x = visualDataWrapper.getBufferFFT00Val();
+		float y = visualDataWrapper.getBufferFFT01Val();
+		float z = visualDataWrapper.getBufferFFT02Val();
+		float w = visualDataWrapper.getBufferFFT03Val();
+		_sceneParameters.audiodata01 = { x , y , z , w };
 		
 		//printf("reading 01:%.8f\n", audioData.visualbuffer00->front());
 		//printf("reading 02:%.8f\n", audioData.visualbuffer01->front());
