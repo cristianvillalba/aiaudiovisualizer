@@ -8,7 +8,7 @@
 
 #define SAMPLE_RATE  (44100)
 #define FRAMES_PER_BUFFER (512)
-#define NUM_SECONDS     (0.4)
+#define NUM_SECONDS     (0.3)
 #define NUM_CHANNELS    (2)
 /* #define DITHER_FLAG     (paDitherOff) */
 #define DITHER_FLAG     (0) /**/
@@ -158,37 +158,61 @@ public:
 	float getBufferFFT00Val()
 	{
 		std::lock_guard<std::mutex> lock(m);
-		float val = visualData.visualbufferfft00.front();
-		visualData.visualbufferfft00.pop_front();
-		//printf("reading01:%.8f\n", val);
-		return val;
+		if (visualData.visualbufferfft00.size() > 0){
+			float val = visualData.visualbufferfft00.front();
+			visualData.visualbufferfft00.pop_front();
+			//printf("reading01:%.8f\n", val);
+			return val;
+		}
+		else
+		{
+			return 0.0f;
+		}
 	}
 
 	float getBufferFFT01Val()
 	{
 		std::lock_guard<std::mutex> lock(m);
-		float val = visualData.visualbufferfft01.front();
-		visualData.visualbufferfft01.pop_front();
-		//printf("reading02:%.8f\n", val);
-		return val;
+		if (visualData.visualbufferfft01.size() > 0) {
+			float val = visualData.visualbufferfft01.front();
+			visualData.visualbufferfft01.pop_front();
+			//printf("reading02:%.8f\n", val);
+			return val;
+		}
+		else
+		{
+			return 0.0f;
+		}
 	}
 
 	float getBufferFFT02Val()
 	{
 		std::lock_guard<std::mutex> lock(m);
-		float val = visualData.visualbufferfft02.front();
-		visualData.visualbufferfft02.pop_front();
-		//printf("reading03:%.8f\n", val);
-		return val;
+		if (visualData.visualbufferfft02.size() > 0) {
+			float val = visualData.visualbufferfft02.front();
+			visualData.visualbufferfft02.pop_front();
+			//printf("reading03:%.8f\n", val);
+			return val;
+		}
+		else
+		{
+			return 0.0f;
+		}
 	}
 
 	float getBufferFFT03Val()
 	{
 		std::lock_guard<std::mutex> lock(m);
-		float val = visualData.visualbufferfft03.front();
-		visualData.visualbufferfft03.pop_front();
-		//printf("reading04:%.8f\n", val);
-		return val;
+		if (visualData.visualbufferfft03.size() > 0) {
+			float val = visualData.visualbufferfft03.front();
+			visualData.visualbufferfft03.pop_front();
+			//printf("reading04:%.8f\n", val);
+			return val;
+		}
+		else
+		{
+			return 0.0f;
+		}
 	}
 
 	void setBuffer00Val(float val, int maxbuff)
@@ -262,6 +286,116 @@ public:
 			visualData.visualbufferfft03.push_back(val);
 		}
 	}
+
+	void setBufferFFT00Val(float * buff, int maxbuff, int fftmaxbuf)
+	{
+		std::lock_guard<std::mutex> lock(m);
+
+		for (int i = 0; i < maxbuff; i++)
+		{
+			visualData.visualbufferfft00.push_back(buff[i]);
+
+			if (visualData.visualbufferfft00.size() >= fftmaxbuf)
+			{
+				visualData.visualbufferfft00.pop_front();
+			}
+		}
+	}
+
+	void setBufferFFT01Val(float* buff, int maxbuff, int fftmaxbuf)
+	{
+		std::lock_guard<std::mutex> lock(m);
+
+		for (int i = 0; i < maxbuff; i++)
+		{
+			visualData.visualbufferfft01.push_back(buff[i]);
+
+			if (visualData.visualbufferfft01.size() >= fftmaxbuf)
+			{
+				visualData.visualbufferfft01.pop_front();
+			}
+		}
+	}
+
+	void setBufferFFT02Val(float* buff, int maxbuff, int fftmaxbuf)
+	{
+		std::lock_guard<std::mutex> lock(m);
+
+		for (int i = 0; i < maxbuff; i++)
+		{
+			visualData.visualbufferfft02.push_back(buff[i]);
+
+			if (visualData.visualbufferfft02.size() >= fftmaxbuf)
+			{
+				visualData.visualbufferfft02.pop_front();
+			}
+		}
+	}
+
+	void setBufferFFT03Val(float* buff, int maxbuff, int fftmaxbuf)
+	{
+		std::lock_guard<std::mutex> lock(m);
+
+		for (int i = 0; i < maxbuff; i++)
+		{
+			visualData.visualbufferfft03.push_back(buff[i]);
+
+			if (visualData.visualbufferfft03.size() >= fftmaxbuf)
+			{
+				visualData.visualbufferfft03.pop_front();
+			}
+		}
+	}
+
+	void getBuffer00FFTVals(glm::float32 * buff)
+	{
+		std::lock_guard<std::mutex> lock(m);
+	
+		for (int i = 0; visualData.visualbufferfft00.size() > 0; i++)
+		{
+			float val = visualData.visualbufferfft00.front();
+			visualData.visualbufferfft00.pop_front();
+			buff[i] = val;
+		}
+	}
+
+	void getBuffer01FFTVals(glm::float32* buff)
+	{
+		std::lock_guard<std::mutex> lock(m);
+
+		for (int i = 0; visualData.visualbufferfft01.size() > 0; i++)
+		{
+			float val = visualData.visualbufferfft01.front();
+			visualData.visualbufferfft01.pop_front();
+			buff[i] = val;
+		}
+	}
+
+	void getBuffer02FFTVals(glm::float32* buff)
+	{
+		std::lock_guard<std::mutex> lock(m);
+
+		for (int i = 0; visualData.visualbufferfft02.size() > 0; i++)
+		{
+			float val = visualData.visualbufferfft02.front();
+			visualData.visualbufferfft02.pop_front();
+			buff[i] = val;
+		}
+	}
+
+	void getBuffer03FFTVals(glm::float32* buff)
+	{
+		std::lock_guard<std::mutex> lock(m);
+
+		for (int i = 0; visualData.visualbufferfft03.size() > 0; i++)
+		{
+			float val = visualData.visualbufferfft03.front();
+			visualData.visualbufferfft03.pop_front();
+			buff[i] = val;
+		}
+	}
+
+	
 };
 
 extern struct paTestData audioData; //this instance is defined in vk_engine.cpp

@@ -1016,7 +1016,7 @@ void VulkanEngine::init_pipelines()
 	mesh_pipeline_layout_info.pPushConstantRanges = &push_constant;
 	mesh_pipeline_layout_info.pushConstantRangeCount = 1;
 
-	VkDescriptorSetLayout setLayouts[] = { _globalSetLayout, _objectSetLayout };
+	VkDescriptorSetLayout setLayouts[] = { _globalSetLayout, _objectSetLayout};
 
 	mesh_pipeline_layout_info.setLayoutCount = 2;
 	mesh_pipeline_layout_info.pSetLayouts = setLayouts;
@@ -1028,7 +1028,7 @@ void VulkanEngine::init_pipelines()
 	//we start from  the normal mesh layout
 	VkPipelineLayoutCreateInfo textured_pipeline_layout_info = mesh_pipeline_layout_info;
 
-	VkDescriptorSetLayout texturedSetLayouts[] = { _globalSetLayout, _objectSetLayout, _singleTextureSetLayout };
+	VkDescriptorSetLayout texturedSetLayouts[] = { _globalSetLayout, _objectSetLayout, _singleTextureSetLayout};
 
 	textured_pipeline_layout_info.setLayoutCount = 3;
 	textured_pipeline_layout_info.pSetLayouts = texturedSetLayouts;
@@ -1041,7 +1041,7 @@ void VulkanEngine::init_pipelines()
 	//we start from  the normal mesh layout
 	VkPipelineLayoutCreateInfo offtexture_pipeline_layout_info = mesh_pipeline_layout_info;
 
-	VkDescriptorSetLayout offtextSetLayouts[] = { _globalSetLayout, _objectSetLayout, _singleTextureSetLayout };
+	VkDescriptorSetLayout offtextSetLayouts[] = { _globalSetLayout, _objectSetLayout, _singleTextureSetLayout};
 
 	offtexture_pipeline_layout_info.setLayoutCount = 3;
 	offtexture_pipeline_layout_info.pSetLayouts = offtextSetLayouts;
@@ -1482,35 +1482,6 @@ void VulkanEngine::draw_quad(VkCommandBuffer cmd)
 	_sceneParameters.ambientColor = { sin(framed),0,cos(framed),1 };
 	_sceneParameters.frame = framed;
 
-	if (visualDataWrapper.getBufferFFT00Size() > 0 && visualDataWrapper.getBufferFFT01Size() > 0 && visualDataWrapper.getBufferFFT02Size() > 0 && visualDataWrapper.getBufferFFT03Size() > 0)
-	{
-		/*float x = visualDataWrapper.getBuffer00Val();
-		float y = visualDataWrapper.getBuffer01Val();
-		float z = visualDataWrapper.getBuffer02Val();
-		float w = visualDataWrapper.getBuffer03Val();*/
-
-		float x = visualDataWrapper.getBufferFFT00Val();
-		float y = visualDataWrapper.getBufferFFT01Val();
-		float z = visualDataWrapper.getBufferFFT02Val();
-		float w = visualDataWrapper.getBufferFFT03Val();
-		_sceneParameters.audiodata01 = { x , y , z , w };
-		
-		//printf("reading 01:%.8f\n", audioData.visualbuffer00->front());
-		//printf("reading 02:%.8f\n", audioData.visualbuffer01->front());
-		//printf("reading 03:%.8f\n", audioData.visualbuffer02->front());
-		//printf("reading 04:%.8f\n", audioData.visualbuffer03->front()); 
-
-	} 
-	//for (int j = 0; j < 50; j++)   
-	//{
-	//	if (!isnan(audioData.bufferpredictl[77000 - j])){
-	//		_sceneParameters.audiodata01 = { audioData.bufferpredictl[77000 - j], 0, 0 , 0 };
-	//		//std::cout << audioData.bufferpredictl[77000 - j] << std::endl;
-	//	}
-	//	break;
-	//}
-	
-
 	char* sceneData;
 	vmaMapMemory(_allocator, _sceneParameterBuffer._allocation, (void**)&sceneData);
 
@@ -1523,9 +1494,8 @@ void VulkanEngine::draw_quad(VkCommandBuffer cmd)
 
 	vmaUnmapMemory(_allocator, _sceneParameterBuffer._allocation);
 
-
 	void* objectData;
-	//Using the object buffer of the 3rd frame
+	//Using the object buffer of the 3rd frame    
 	vmaMapMemory(_allocator, _frames[2].objectBuffer._allocation, &objectData);
 
 	GPUObjectData* objectSSBO = (GPUObjectData*)objectData;
@@ -1534,13 +1504,28 @@ void VulkanEngine::draw_quad(VkCommandBuffer cmd)
 
 	vmaUnmapMemory(_allocator, _frames[2].objectBuffer._allocation);
 
+	void* fftData;
+	vmaMapMemory(_allocator, _frames[2].fftBuffer._allocation, &fftData);
+
+	GPUFFTData* fftSSBO = (GPUFFTData*)fftData;
+
+	for (int i = 0; i < 32; i++)
+	{
+		fftSSBO[i].audio.x = visualDataWrapper.getBufferFFT00Val();
+		fftSSBO[i].audio.y = visualDataWrapper.getBufferFFT01Val();
+		fftSSBO[i].audio.z = visualDataWrapper.getBufferFFT02Val();
+		fftSSBO[i].audio.w = visualDataWrapper.getBufferFFT03Val();
+	}
+
+	vmaUnmapMemory(_allocator, _frames[2].fftBuffer._allocation);
+
 	Mesh* lastMesh = nullptr;
 	Material* lastMaterial = nullptr;
 
 
 	RenderObject& object = _renderablesoffset[0];
 
-	//only bind the pipeline if it doesnt match with the already bound one
+	//only bind the pipeline if it doesnt match with the already bound one       
 	if (object.material != lastMaterial) {
 
 		vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, object.material->pipeline);
@@ -1551,6 +1536,9 @@ void VulkanEngine::draw_quad(VkCommandBuffer cmd)
 
 		//object data descriptor
 		vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, object.material->pipelineLayout, 1, 1, &_frames[2].objectDescriptor, 0, nullptr);
+
+		//fft data descriptor   
+		//vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, object.material->pipelineLayout, 1, 2, &_frames[2].objectDescriptor, 0, nullptr);
 
 		if (object.material->textureSet != VK_NULL_HANDLE) {
 			//texture descriptor
@@ -1712,7 +1700,7 @@ void VulkanEngine::init_scene()
 	RenderObject monkey;
 	monkey.mesh = get_mesh("monkey");
 	monkey.material = get_material("defaultmesh");
-	monkey.transformMatrix = glm::translate(glm::mat4{ 1.0 }, glm::vec3(0.0, 6.0, 1.0));
+	monkey.transformMatrix = glm::translate(glm::mat4{ 1.0 }, glm::vec3(0.0, 10.0, 1.0));
 
 	_renderables.push_back(monkey);
 
@@ -1886,28 +1874,30 @@ void VulkanEngine::init_descriptors()
 	vkCreateDescriptorSetLayout(_device, &setinfo, nullptr, &_globalSetLayout);
 
 	VkDescriptorSetLayoutBinding objectBind = vkinit::descriptorset_layout_binding(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, 0);
+	VkDescriptorSetLayoutBinding fftBind = vkinit::descriptorset_layout_binding(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT, 1);
+
+	VkDescriptorSetLayoutBinding bindingsObj[] = { objectBind, fftBind };
 
 	VkDescriptorSetLayoutCreateInfo set2info = {};
-	set2info.bindingCount = 1;
+	set2info.bindingCount = 2;
 	set2info.flags = 0;
 	set2info.pNext = nullptr;
 	set2info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-	set2info.pBindings = &objectBind;
+	set2info.pBindings = bindingsObj;
 
 	vkCreateDescriptorSetLayout(_device, &set2info, nullptr, &_objectSetLayout);
 
-
+	
 	const size_t sceneParamBufferSize = FRAME_OVERLAP * pad_uniform_buffer_size(sizeof(GPUSceneData));
 
 	_sceneParameterBuffer = create_buffer(sceneParamBufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
 	
-	
-
-
 
 	for (int i = 0; i < FRAME_OVERLAP; i++)
 	{
 		_frames[i].cameraBuffer = create_buffer(sizeof(GPUCameraData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+
+		_frames[i].fftBuffer = create_buffer(sizeof(GPUFFTData)*32, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
 
 		const int MAX_OBJECTS = 10000;
 		_frames[i].objectBuffer = create_buffer(sizeof(GPUObjectData) * MAX_OBJECTS, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
@@ -1945,6 +1935,11 @@ void VulkanEngine::init_descriptors()
 		objectBufferInfo.offset = 0;
 		objectBufferInfo.range = sizeof(GPUObjectData) * MAX_OBJECTS;
 
+		VkDescriptorBufferInfo fftBufferInfo;
+		fftBufferInfo.buffer = _frames[i].fftBuffer._buffer;
+		fftBufferInfo.offset = 0;//no funciona esto - fftBufferInfo.offset = pad_uniform_buffer_size(sizeof(GPUFFTData)) * i;
+		fftBufferInfo.range = sizeof(GPUFFTData) * 32;
+
 
 		VkWriteDescriptorSet cameraWrite = vkinit::write_descriptor_buffer(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, _frames[i].globalDescriptor,&cameraInfo,0);
 		
@@ -1952,9 +1947,11 @@ void VulkanEngine::init_descriptors()
 
 		VkWriteDescriptorSet objectWrite = vkinit::write_descriptor_buffer(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, _frames[i].objectDescriptor, &objectBufferInfo, 0);
 
-		VkWriteDescriptorSet setWrites[] = { cameraWrite,sceneWrite,objectWrite };
+		VkWriteDescriptorSet fftWrite = vkinit::write_descriptor_buffer(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, _frames[i].objectDescriptor, &fftBufferInfo, 1);
 
-		vkUpdateDescriptorSets(_device, 3, setWrites, 0, nullptr);
+		VkWriteDescriptorSet setWrites[] = { cameraWrite,sceneWrite,objectWrite, fftWrite };
+
+		vkUpdateDescriptorSets(_device, 4, setWrites, 0, nullptr);
 	}
 
 	_mainDeletionQueue.push_function([&]() {
@@ -1970,9 +1967,10 @@ void VulkanEngine::init_descriptors()
 			vmaDestroyBuffer(_allocator,_frames[i].cameraBuffer._buffer, _frames[i].cameraBuffer._allocation);
 
 			vmaDestroyBuffer(_allocator, _frames[i].objectBuffer._buffer, _frames[i].objectBuffer._allocation);
+
+			vmaDestroyBuffer(_allocator, _frames[i].fftBuffer._buffer, _frames[i].fftBuffer._allocation);
 		}
 	});
-
 
 	//another set, one that holds a single texture
 	VkDescriptorSetLayoutBinding textureBind = vkinit::descriptorset_layout_binding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 0);

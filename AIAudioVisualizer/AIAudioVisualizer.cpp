@@ -239,9 +239,10 @@ int AudioVisualizer::predict(float* samples, int numchannels)
 	stftl->inverseWindowing(false);
 	stftr->inverseWindowing(false);
 
+	float converterbuffer[32];
+
 	for (int k = 0; k < nframes; k++)
 	{
-		float average = 0.0;
 		for (int j = 0; j < stftl->numBins(); j++)
 		{
 			gam::Complex comp0;
@@ -253,17 +254,10 @@ int AudioVisualizer::predict(float* samples, int numchannels)
 			stftl->bin(j).set(comp0);
 			stftr->bin(j).set(comp1);
 
-			
-			//if (j < 7){
-			//	visualDataWrapper.setBufferFFT00Val(comp0.mag(), nframes * stftl->numBins());
-			//}
-			average += comp0.mag();
+			int ind = (int)(j / (stftl->numBins() * 1.0f) * 32);
+			converterbuffer[ind] = comp0.mag() * 1000000.0;
 		}
-
-		average = average / stftl->numBins();
-
-		//std::cout << "average mag: " << average << std::endl;
-		visualDataWrapper.setBufferFFT00Val(average, nframes * stftl->numBins());
+		visualDataWrapper.setBufferFFT00Val(converterbuffer, 32, 4096);
 
 		stftl->inverse(bufferindexl00); //save inverse into buffer
 		stftr->inverse(bufferindexr00); //save inverse into buffer
@@ -272,7 +266,6 @@ int AudioVisualizer::predict(float* samples, int numchannels)
 		bufferindexr00 += 512; //hop size
 
 		//----------------------
-		average = 0.0f;
 		for (int j = 0; j < stftl->numBins(); j++)
 		{
 			gam::Complex comp0;
@@ -283,15 +276,12 @@ int AudioVisualizer::predict(float* samples, int numchannels)
 
 			stftl->bin(j).set(comp0);
 			stftr->bin(j).set(comp1);
-
-			average += comp0.mag();
-
-			
+	
+			int ind = (int)(j / (stftl->numBins() * 1.0f) * 32);
+			converterbuffer[ind] = comp0.mag() * 1000.0;
+			//converterbuffer[ind] =  1.0;
 		}
-
-		average = average / stftl->numBins();
-		visualDataWrapper.setBufferFFT01Val(average, nframes * stftl->numBins());
-		//std::cout << "average mag: " << average << std::endl;
+		visualDataWrapper.setBufferFFT01Val(converterbuffer, 32, 4096);
 
 		stftl->inverse(bufferindexl01); //save inverse into buffer
 		stftr->inverse(bufferindexr01); //save inverse into buffer
@@ -300,7 +290,6 @@ int AudioVisualizer::predict(float* samples, int numchannels)
 		bufferindexr01 += 512; //hop size
 
 		//----------------------
-		average = 0.0f;
 		for (int j = 0; j < stftl->numBins(); j++)
 		{
 			gam::Complex comp0;
@@ -311,14 +300,13 @@ int AudioVisualizer::predict(float* samples, int numchannels)
 
 			stftl->bin(j).set(comp0);
 			stftr->bin(j).set(comp1);
-
-			average += comp0.mag();
-			
+		
+			int ind = (int)(j / (stftl->numBins() * 1.0f) * 32);
+			converterbuffer[ind] = comp0.mag() * 1000.0;
+			//converterbuffer[ind] = 1.0f;
 		}
-
-		average = average / stftl->numBins();
-		//std::cout << "average mag: " << average << std::endl;
-		visualDataWrapper.setBufferFFT02Val(average, nframes * stftl->numBins());
+		visualDataWrapper.setBufferFFT02Val(converterbuffer, 32, 4096);
+		
 
 		stftl->inverse(bufferindexl02); //save inverse into buffer
 		stftr->inverse(bufferindexr02); //save inverse into buffer
@@ -327,7 +315,6 @@ int AudioVisualizer::predict(float* samples, int numchannels)
 		bufferindexr02 += 512; //hop size
 
 		//----------------------
-		average = 0.0f;
 
 		for (int j = 0; j < stftl->numBins(); j++)
 		{
@@ -340,12 +327,10 @@ int AudioVisualizer::predict(float* samples, int numchannels)
 			stftl->bin(j).set(comp0);
 			stftr->bin(j).set(comp1);
 
-			average += comp0.mag();
+			int ind = (int)(j / (stftl->numBins() * 1.0f) * 32);
+			converterbuffer[ind] = comp0.mag() * 1000000.0;
 		}
-
-		average = average / stftl->numBins();
-		//std::cout << "average mag: " << average << std::endl;
-		visualDataWrapper.setBufferFFT03Val(average, nframes * stftl->numBins());
+		visualDataWrapper.setBufferFFT03Val(converterbuffer, 32, 4096);
 
 		stftl->inverse(bufferindexl03); //save inverse into buffer 
 		stftr->inverse(bufferindexr03); //save inverse into buffer
@@ -355,19 +340,6 @@ int AudioVisualizer::predict(float* samples, int numchannels)
 	}
 
 	//std::cout << "prediction done..." << std::endl;
-
-	int buffersize = nframes * 512 + 2048; //adding the last window   
-
-	
-	//for (int j = 0; j < (buffersize - 3910); j++) //worthless
-	//for (int j = (buffersize - 3910); j < buffersize; j++)
-	//for (int j = (int)(buffersize / 2); j < buffersize; j++) //worthless
-	//{
-	//	visualDataWrapper.setBuffer00Val(bufferpredict00[0][j], 2048);
-	//	visualDataWrapper.setBuffer01Val(bufferpredict01[0][j], 2048);
-	//	visualDataWrapper.setBuffer02Val(bufferpredict02[0][j], 2048);
-	//	visualDataWrapper.setBuffer03Val(bufferpredict03[0][j], 2048);
-	//}
 	
 	return  0;
 }

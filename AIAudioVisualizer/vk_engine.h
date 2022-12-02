@@ -106,6 +106,9 @@ struct FrameData {
 
 	AllocatedBuffer objectBuffer;
 	VkDescriptorSet objectDescriptor;
+
+	AllocatedBuffer fftBuffer;
+	VkDescriptorSet fftDescriptor;
 };
 
 struct UploadContext {
@@ -120,6 +123,10 @@ struct GPUCameraData{
 	glm::mat4 viewproj;
 };
 
+struct GPUFFTData {
+	glm::vec4 audio;
+};
+
 
 struct GPUSceneData {
 	glm::vec4 fogColor; // w is for exponent
@@ -127,8 +134,6 @@ struct GPUSceneData {
 	glm::vec4 ambientColor;
 	glm::vec4 sunlightDirection; //w for sun power
 	glm::vec4 sunlightColor;
-	glm::vec4 audiodata01;//x is bass, y is drums, z is other, w is vocals
-	glm::vec4 audiodata02;//future use
 	glm::float32 frame;
 };
 

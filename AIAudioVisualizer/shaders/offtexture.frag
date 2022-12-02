@@ -1,5 +1,5 @@
 //glsl version 4.5
-#version 450
+#version 460
 
 //shader input
 layout (location = 0) in vec3 inColor;
@@ -15,110 +15,75 @@ layout(set = 0, binding = 1) uniform  SceneData{
 	vec4 ambientColor;
 	vec4 sunlightDirection; //w for sun power
 	vec4 sunlightColor;
-	vec4 audiodata01;
-	vec4 audiodata02;
 	float frame;
 } sceneData;
 
 layout(set = 2, binding = 0) uniform sampler2D tex1;
 
-float getLevel(float x, int type) {
-	if (type == 0)
-	{
-		return sceneData.audiodata01.x;
-	}
-	if (type == 1)
-	{
-		return sceneData.audiodata01.y;
-	}
-	if (type == 2)
-	{
-		return sceneData.audiodata01.z;
-	}
-	if (type == 3)
-	{
-		return sceneData.audiodata01.w;
-	}
-}
+struct FFTData{
+	vec4 audio;
+};
 
-float getPitch(float freq, int octave, int type){
-   return getLevel(pow(2.0, float(octave)) * freq / 12000.0, type);
-}
+//all object matrices
+layout(std140,set = 1, binding = 1) readonly buffer ObjectBuffer{
 
-float logX(float x, float a, float c){
-   return 1.0 / (exp(-a*(x-c)) + 1.0);
-}
-
-float logisticAmp(float amp){
-   float c = 1.0 - (0.25);
-   float a = 20.0 * (1.0 - 0.5);  
-   a = 20.;   
-   return (logX(amp, a, c) - logX(0.0, a, c)) / (logX(1.0, a, c) - logX(0.0, a, c));
-}
-
-float getAudioIntensityAt(float x, int type) {
-    x = abs(fract(x));
-    float freq = pow(2., x*3.) * 261.;
-    return logisticAmp(getPitch(freq, 1, type));
-}
+	FFTData audio[];
+} fftBuffer;
 
 void main() 
 {	
-	//vec2 coord = vec2(fragCoord.x, fragCoord.y + sin(sceneData.frame * 5.0f));
-	//vec2 coord = vec2(fragCoord.x, fragCoord.y + sceneData.audiodata01.x * 1000.0f);
-	
-	float wavepoint = smoothstep( 0.0, 0.00001, sceneData.audiodata01.x) - 1.0f;
-	//float wavepoint = step(0.0f, abs(sceneData.audiodata01.x)) - 1.0f;
-	//float wavepoint = getAudioIntensityAt(0.3, 0);
+	//float wavepoint = smoothstep( 0.0, 0.00001, sceneData.audiodata01.x) - 1.0f;
 
-	vec2 coord = vec2(fragCoord.x, fragCoord.y + wavepoint);
-	float dis = distance(coord, vec2(-0.1f, 6.0f));
+	vec2 coord = vec2(fragCoord.x, fragCoord.y);
+	float dis = distance(0.0f, coord.x);
 	vec3 finalcolor = vec3(0.0f, 0.0f, 0.0f);
 
-	vec2 offtex01 = vec2(texCoord.x + 0.005f, -texCoord.y);
-	vec2 offtex02 = vec2(texCoord.x - 0.005f, -texCoord.y);
+	vec2 offtex01 = vec2(texCoord.x + 0.01f, -texCoord.y);
+	vec2 offtex02 = vec2(texCoord.x - 0.01f, -texCoord.y);
 	vec3 oldcolor01 = texture(tex1, offtex01).xyz;
 	vec3 oldcolor02 = texture(tex1, offtex02).xyz;
 
-	// add wave form on top	
-	//float wavecol = 1.0 -  smoothstep( 0.0, 0.15, abs(sceneData.audiodata01.x - texCoord.y) );
-
 	if (dis < 0.2){
-		finalcolor = vec3(1.0f, 0.0f,0.0f);
-	}
+		float ydist = distance(0.0, coord.y - 6.0);
 
-	wavepoint = smoothstep( 0.0, 0.00001, sceneData.audiodata01.y) - 1.0f;
-	//wavepoint = getAudioIntensityAt(0.4, 1);
+		if (ydist < 1.5)
+		{
+			uint ind1 = uint(clamp(abs(fragCoord.y - 6.0),0.0,1.5) / 1.5 * 32.0);
+			float valred = fftBuffer.audio[ind1].audio.x;
+			finalcolor.r = valred;
+		}
 
-	coord = vec2(fragCoord.x, fragCoord.y + wavepoint);
-	dis = distance(coord, vec2(-0.1f, 3.0f));
-	
-	if (dis < 0.2){
-		finalcolor = vec3(0.0f, 1.0f,0.0f);
-	}
+		ydist = distance(0.0, coord.y - 3.0);
 
-	wavepoint = smoothstep( 0.0, 0.00001, sceneData.audiodata01.z) - 1.0f;
-	//wavepoint = getAudioIntensityAt(0.5, 2);
+		if (ydist < 1.5)
+		{
+			uint ind2 = uint(clamp(abs(fragCoord.y - 3.0),0.0,1.5) / 1.5 * 32.0);
+			float valgreen= fftBuffer.audio[ind2].audio.y;
+			finalcolor.g = valgreen;
+		}
 
-	coord = vec2(fragCoord.x, fragCoord.y + wavepoint);
-	dis = distance(coord, vec2(-0.1f, 0.0f));
-	
-	if (dis < 0.2){
-		finalcolor = vec3(0.0f, 0.0f,1.0f);
-	}
+		ydist = distance(0.0, coord.y );
 
-	wavepoint = smoothstep( 0.0, 0.00001, sceneData.audiodata01.w) - 1.0f;
-	//wavepoint = getAudioIntensityAt(0.7, 3);
+		if (ydist < 1.5)
+		{
+			uint ind3 = uint(clamp(abs(fragCoord.y),0.0,1.5) / 1.5 * 32.0) ;
+			float valblue= fftBuffer.audio[ind3].audio.z;
+			finalcolor.b = valblue;
+		}
 
-	coord = vec2(fragCoord.x, fragCoord.y + wavepoint);
-	dis = distance(coord, vec2(-0.1f, -3.0f));
-	
-	if (dis < 0.2){
-		finalcolor = vec3(0.0f, 1.0f,1.0f);
+		ydist = distance(0.0, coord.y + 3.0);
+
+		if (ydist < 1.5)
+		{
+			uint ind4 = uint(clamp(abs(fragCoord.y + 3.0),0.0,1.5) / 1.5 * 32.0) ;
+			float valyell= fftBuffer.audio[ind4].audio.w;
+			finalcolor.r = valyell;
+			finalcolor.g = valyell;
+		}
 	}
 
 	//finalcolor.x = wavecol;
-	finalcolor = finalcolor  + oldcolor01 * 0.45 + oldcolor02 * 0.45 ;
+	finalcolor = finalcolor  + oldcolor01 * 0.48 + oldcolor02 * 0.48 ;
 
 	outFragColor = vec4(finalcolor, 1.0f);
 }
