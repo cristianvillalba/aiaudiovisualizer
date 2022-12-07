@@ -1525,7 +1525,7 @@ void VulkanEngine::draw_quad(VkCommandBuffer cmd)
 
 	RenderObject& object = _renderablesoffset[0];
 
-	//only bind the pipeline if it doesnt match with the already bound one       
+	//only bind the pipeline if it doesnt match with the already bound one   
 	if (object.material != lastMaterial) {
 
 		vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, object.material->pipeline);
@@ -1782,7 +1782,7 @@ void VulkanEngine::init_scene()
 	quad.mesh = get_mesh("quad");
 	quad.material = get_material("texturedmesh");//texturedmesh //defaultmesh
 	glm::mat4 translation = glm::translate(glm::mat4{ 1.0 }, glm::vec3(0, 5.0, 0));
-	glm::mat4 scale = glm::scale(glm::mat4{ 1.0 }, glm::vec3(10.0, 5.0, 1.0));
+	glm::mat4 scale = glm::scale(glm::mat4{ 1.0 }, glm::vec3(14.0, 9.0, 1.0));
 	quad.transformMatrix = translation * scale;
 	quad.indexed = true;
 

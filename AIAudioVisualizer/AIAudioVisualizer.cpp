@@ -240,6 +240,7 @@ int AudioVisualizer::predict(float* samples, int numchannels)
 	stftr->inverseWindowing(false);
 
 	float converterbuffer[32];
+	int maxvisualbuffer = 1024;
 
 	for (int k = 0; k < nframes; k++)
 	{
@@ -255,9 +256,9 @@ int AudioVisualizer::predict(float* samples, int numchannels)
 			stftr->bin(j).set(comp1);
 
 			int ind = (int)(j / (stftl->numBins() * 1.0f) * 32);
-			converterbuffer[ind] = comp0.mag() * 1000000.0;
+			converterbuffer[ind] = comp0.mag() * 10000.0;
 		}
-		visualDataWrapper.setBufferFFT00Val(converterbuffer, 32, 4096);
+		visualDataWrapper.setBufferFFT00Val(converterbuffer, 32, maxvisualbuffer);
 
 		stftl->inverse(bufferindexl00); //save inverse into buffer
 		stftr->inverse(bufferindexr00); //save inverse into buffer
@@ -281,7 +282,7 @@ int AudioVisualizer::predict(float* samples, int numchannels)
 			converterbuffer[ind] = comp0.mag() * 1000.0;
 			//converterbuffer[ind] =  1.0;
 		}
-		visualDataWrapper.setBufferFFT01Val(converterbuffer, 32, 4096);
+		visualDataWrapper.setBufferFFT01Val(converterbuffer, 32, maxvisualbuffer);
 
 		stftl->inverse(bufferindexl01); //save inverse into buffer
 		stftr->inverse(bufferindexr01); //save inverse into buffer
@@ -305,7 +306,7 @@ int AudioVisualizer::predict(float* samples, int numchannels)
 			converterbuffer[ind] = comp0.mag() * 1000.0;
 			//converterbuffer[ind] = 1.0f;
 		}
-		visualDataWrapper.setBufferFFT02Val(converterbuffer, 32, 4096);
+		visualDataWrapper.setBufferFFT02Val(converterbuffer, 32, maxvisualbuffer);
 		
 
 		stftl->inverse(bufferindexl02); //save inverse into buffer
@@ -328,9 +329,9 @@ int AudioVisualizer::predict(float* samples, int numchannels)
 			stftr->bin(j).set(comp1);
 
 			int ind = (int)(j / (stftl->numBins() * 1.0f) * 32);
-			converterbuffer[ind] = comp0.mag() * 1000000.0;
+			converterbuffer[ind] = comp0.mag() * 10000.0;
 		}
-		visualDataWrapper.setBufferFFT03Val(converterbuffer, 32, 4096);
+		visualDataWrapper.setBufferFFT03Val(converterbuffer, 32, maxvisualbuffer);
 
 		stftl->inverse(bufferindexl03); //save inverse into buffer 
 		stftr->inverse(bufferindexr03); //save inverse into buffer
