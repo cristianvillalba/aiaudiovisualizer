@@ -135,6 +135,7 @@ struct GPUSceneData {
 	glm::vec4 sunlightDirection; //w for sun power
 	glm::vec4 sunlightColor;
 	glm::float32 frame;
+	glm::float32 shaderoffset;
 };
 
 struct GPUObjectData {

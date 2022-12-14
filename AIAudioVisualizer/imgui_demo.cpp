@@ -8026,6 +8026,8 @@ static void ShowAIAppLog(bool* p_open)
     //    audioData.visualoffset = 0;
     //}
 
+    ImGui::SliderFloat("Shader - FrameOffset", &audioData.shaderFrameOffset, 0.0f, 2.0f);
+
     ImGui::End();
 
     // Actually call in the regular Log helper (which will Begin() into the same window as we just did)

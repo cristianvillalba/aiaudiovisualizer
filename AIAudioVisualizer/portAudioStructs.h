@@ -31,8 +31,7 @@ struct paTestData
 
 	std::vector<std::string> * devices;
 	int deviceselection;
-
-	
+	float shaderFrameOffset;
 };
 
 class VisualData

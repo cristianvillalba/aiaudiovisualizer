@@ -16,6 +16,7 @@ layout(set = 0, binding = 1) uniform  SceneData{
 	vec4 sunlightDirection; //w for sun power
 	vec4 sunlightColor;
 	float frame;
+	float shaderoffset;
 } sceneData;
 
 layout(set = 2, binding = 0) uniform sampler2D tex1;
@@ -83,7 +84,7 @@ void main()
 	}
 
 	//finalcolor.x = wavecol;
-	finalcolor = finalcolor  + oldcolor01 * 0.48 + oldcolor02 * 0.48 ;
+	finalcolor = finalcolor  + oldcolor01 * 0.48 * sceneData.shaderoffset + oldcolor02 * 0.48 * sceneData.shaderoffset  ;
 
 	outFragColor = vec4(finalcolor, 1.0f);
 }

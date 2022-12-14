@@ -1481,6 +1481,7 @@ void VulkanEngine::draw_quad(VkCommandBuffer cmd)
 
 	_sceneParameters.ambientColor = { sin(framed),0,cos(framed),1 };
 	_sceneParameters.frame = framed;
+	_sceneParameters.shaderoffset = audioData.shaderFrameOffset;
 
 	char* sceneData;
 	vmaMapMemory(_allocator, _sceneParameterBuffer._allocation, (void**)&sceneData);
